@@ -1,0 +1,2 @@
+/usr/bin/ar qc libstrategy_log.a CMakeFiles/strategy_log.dir/src/Log/LogServiceConsole.cpp.o CMakeFiles/strategy_log.dir/src/Log/LogServiceFile.cpp.o CMakeFiles/strategy_log.dir/src/Log/AsyncLogService.cpp.o CMakeFiles/strategy_log.dir/src/player_service/PlayerRepositoryPostgres.cpp.o
+/usr/bin/ranlib libstrategy_log.a

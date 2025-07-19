@@ -1,0 +1,3 @@
+/home/pck/Game/strategy/build/CMakeFiles/strategy_service.dir
+/home/pck/Game/strategy/build/CMakeFiles/edit_cache.dir
+/home/pck/Game/strategy/build/CMakeFiles/rebuild_cache.dir

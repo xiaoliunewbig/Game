@@ -1,0 +1,46 @@
+{
+  "databases": {
+    "primary": {
+      "type": "postgresql",
+      "host": "localhost",
+      "port": 5432,
+      "database": "game_db",
+      "username": "game_user",
+      "password": "game_password",
+      "max_connections": 20,
+      "min_connections": 2,
+      "connection_timeout": 30,
+      "extra_params": {
+        "sslmode": "prefer",
+        "connect_timeout": "10"
+      }
+    },
+    "cache": {
+      "type": "sqlite",
+      "database": "/tmp/game_cache.db",
+      "max_connections": 5
+    },
+    "analytics": {
+      "type": "mongodb",
+      "host": "analytics-server",
+      "port": 27017,
+      "database": "game_analytics",
+      "username": "analytics_user",
+      "password": "analytics_pass"
+    },
+    "backup": {
+      "type": "mysql",
+      "host": "backup-server",
+      "port": 3306,
+      "database": "game_backup",
+      "username": "backup_user",
+      "password": "backup_pass"
+    }
+  },
+  "default": "primary",
+  "environments": {
+    "development": "primary",
+    "testing": "cache",
+    "production": "primary"
+  }
+}
