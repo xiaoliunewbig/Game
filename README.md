@@ -90,8 +90,8 @@ pip3 install -r tools/requirements.txt
 
 #### 1. 克隆仓库
 ```bash
-git clone https://github.com/your-username/fantasy-legend-game.git
-cd fantasy-legend-game
+git clone https://github.com/xiaoliunewbig/Game.git 
+cd Game
 ```
 
 #### 2. 编译Algorithm Service
@@ -328,9 +328,9 @@ docker-compose logs -f
 
 ## 👥 开发团队
 
-- **项目负责人**: 彭承康
-- **架构设计**: 彭承康
-- **核心开发**: 彭承康
+- **项目负责人**: chengkangpeng
+- **架构设计**: chengkangpeng
+- **核心开发**: chengkangpeng
 
 ## 📞 联系方式
 
