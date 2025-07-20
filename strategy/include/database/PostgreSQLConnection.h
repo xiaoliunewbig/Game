@@ -2,7 +2,7 @@
  * 文件名: PostgreSQLConnection.h
  * 说明: PostgreSQL数据库连接实现
  * 作者: 彭承康
- * 创建时间: 2025-01-20
+ * 创建时间: 2025-07-20
  */
 #ifndef STRATEGY_DATABASE_POSTGRESQLCONNECTION_H
 #define STRATEGY_DATABASE_POSTGRESQLCONNECTION_H

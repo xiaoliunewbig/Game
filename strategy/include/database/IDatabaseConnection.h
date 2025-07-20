@@ -2,7 +2,7 @@
  * 文件名: IDatabaseConnection.h
  * 说明: 通用数据库连接接口
  * 作者: 彭承康
- * 创建时间: 2025-01-20
+ * 创建时间: 2025-07-20
  */
 #ifndef STRATEGY_DATABASE_IDATABASECONNECTION_H
 #define STRATEGY_DATABASE_IDATABASECONNECTION_H

@@ -2,7 +2,7 @@
  * 文件名: DatabaseConfig.cpp
  * 说明: 数据库配置实现
  * 作者: 彭承康
- * 创建时间: 2025-01-20
+ * 创建时间: 2025-07-20
  */
 #include "database/DatabaseConfig.h"
 #include <sstream>

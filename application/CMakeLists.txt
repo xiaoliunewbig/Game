@@ -174,7 +174,7 @@ add_custom_command(TARGET game_client POST_BUILD
 )
 
 # 链接策略层和算法层
-target_link_libraries(game_client
-    "${CMAKE_CURRENT_SOURCE_DIR}/../strategy/build/libstrategy_service.a"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../algorithm/build/libalgorithm_service.a"
-)
+# target_link_libraries(game_client
+#     "${CMAKE_CURRENT_SOURCE_DIR}/../strategy/build/libstrategy_service.a"
+#     "${CMAKE_CURRENT_SOURCE_DIR}/../algorithm/build/libalgorithm_service.a"
+# )

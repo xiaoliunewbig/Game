@@ -2,7 +2,7 @@
  * 文件名: DatabaseConfig.h
  * 说明: 数据库配置结构定义
  * 作者: 彭承康
- * 创建时间: 2025-01-20
+ * 创建时间: 2025-07-20
  */
 #ifndef STRATEGY_DATABASE_DATABASECONFIG_H
 #define STRATEGY_DATABASE_DATABASECONFIG_H

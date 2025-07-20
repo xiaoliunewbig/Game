@@ -1,1 +1,0 @@
-/usr/bin/c++ CMakeFiles/run_log_test.dir/main.cpp.o -o run_log_test  ../../strategy/libstrategy_log.a -lpqxx -lpq 
