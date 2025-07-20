@@ -1,41 +1,370 @@
-# Prerequisites
-*.d
+# ============================================================================
+# 《幻境传说》游戏框架 - Git忽略文件配置
+# ============================================================================
+# 文件名: .gitignore
+# 说明: 定义Git版本控制中需要忽略的文件和目录
+# 作者: 彭承康
+# 创建时间: 2025-07-20
+# ============================================================================
 
-# Compiled Object files
-*.slo
-*.lo
+# ----------------------------------------------------------------------------
+# 构建输出目录
+# ----------------------------------------------------------------------------
+build/
+bin/
+lib/
+dist/
+out/
+cmake-build-*/
+.cmake/
+
+# ----------------------------------------------------------------------------
+# IDE和编辑器文件
+# ----------------------------------------------------------------------------
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# CLion
+.idea/
+cmake-build-debug/
+cmake-build-release/
+
+# Qt Creator
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+*.moc.cpp
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+Makefile*
+*build-*
+
+# Visual Studio
+.vs/
+*.vcxproj.user
+*.vcxproj.filters
+*.sln.docstates
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+DerivedData/
+*.hmap
+*.ipa
+
+# ----------------------------------------------------------------------------
+# 编译器和构建系统生成文件
+# ----------------------------------------------------------------------------
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Make
+*.make
+Makefile
+
+# Ninja
+.ninja_deps
+.ninja_log
+build.ninja
+
+# ----------------------------------------------------------------------------
+# C++编译产物
+# ----------------------------------------------------------------------------
+# 目标文件
 *.o
 *.obj
+*.lo
+*.slo
+*.ko
 
-# Precompiled Headers
-*.gch
-*.pch
-
-# Linker files
-*.ilk
-
-# Debugger Files
-*.pdb
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Fortran module files
-*.mod
-*.smod
-
-# Compiled Static libraries
-*.lai
-*.la
+# 库文件
 *.a
 *.lib
+*.la
+*.lai
+*.so
+*.so.*
+*.dll
+*.dylib
 
-# Executables
+# 可执行文件
 *.exe
 *.out
 *.app
+algorithm_service
+strategy_service
+game_client
 
-# debug information files
-*.dwo
+# 调试文件
+*.dSYM/
+*.su
+*.idb
+*.pdb
+*.ilk
+*.map
+*.exp
+
+# 预编译头文件
+*.gch
+*.pch
+
+# ----------------------------------------------------------------------------
+# Qt特定文件
+# ----------------------------------------------------------------------------
+# Qt编译产物
+*.qm
+*.prl
+*.qrc.depends
+*.qmake.cache
+*.qmake.stash
+
+# Qt Designer
+*.ui.autosave
+
+# Qt Linguist
+*.qm
+*.ts.bak
+
+# ----------------------------------------------------------------------------
+# Python文件（工具脚本）
+# ----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.env
+
+# 分发/打包
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# 单元测试/覆盖率报告
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# ----------------------------------------------------------------------------
+# 日志和临时文件
+# ----------------------------------------------------------------------------
+# 日志文件
+*.log
+logs/
+*.log.*
+
+# 临时文件
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+*.bak
+*.orig
+
+# 崩溃报告
+*.crash
+*.dump
+core.*
+
+# ----------------------------------------------------------------------------
+# 配置和密钥文件
+# ----------------------------------------------------------------------------
+# 本地配置文件
+config/local.json
+config/development.local.json
+config/production.local.json
+.env.local
+.env.development.local
+.env.production.local
+
+# 密钥和证书
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# ----------------------------------------------------------------------------
+# 资源文件（大文件）
+# ----------------------------------------------------------------------------
+# 大型资源文件（使用Git LFS管理）
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif
+# *.bmp
+# *.tiff
+# *.wav
+# *.mp3
+# *.ogg
+# *.flac
+# *.mp4
+# *.avi
+# *.mov
+# *.mkv
+
+# 字体文件
+# *.ttf
+# *.otf
+# *.woff
+# *.woff2
+
+# ----------------------------------------------------------------------------
+# 文档生成文件
+# ----------------------------------------------------------------------------
+# Doxygen
+docs/html/
+docs/latex/
+docs/xml/
+docs/man/
+docs/rtf/
+
+# Sphinx
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# ----------------------------------------------------------------------------
+# 包管理器
+# ----------------------------------------------------------------------------
+# Conan
+conandata.yml
+conanfile.txt.bak
+conanbuildinfo.*
+conan.lock
+
+# vcpkg
+vcpkg_installed/
+.vcpkg-root
+
+# ----------------------------------------------------------------------------
+# 测试相关
+# ----------------------------------------------------------------------------
+# 测试输出
+test_results/
+test_reports/
+*.gcov
+*.gcda
+*.gcno
+
+# 性能分析
+*.prof
+*.gprof
+callgrind.out.*
+massif.out.*
+
+# ----------------------------------------------------------------------------
+# 部署和打包
+# ----------------------------------------------------------------------------
+# Docker
+.dockerignore.bak
+
+# 安装包
+*.deb
+*.rpm
+*.msi
+*.dmg
+*.pkg
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+*.7z
+
+# ----------------------------------------------------------------------------
+# 其他工具
+# ----------------------------------------------------------------------------
+# Valgrind
+*.valgrind
+vgcore.*
+
+# GDB
+.gdb_history
+
+# 编辑器备份
+*~
+*.swp
+*.swo
+.#*
+\#*#
+
+# 系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ----------------------------------------------------------------------------
+# 项目特定忽略
+# ----------------------------------------------------------------------------
+# 游戏存档文件
+saves/
+*.save
+*.sav
+
+# 用户配置
+user_config.json
+player_data.json
+
+# 缓存目录
+cache/
+temp/
+tmp/
+
+# 本地测试数据
+test_data/
+sample_data/

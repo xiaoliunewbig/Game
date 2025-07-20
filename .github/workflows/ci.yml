@@ -1,0 +1,287 @@
+# ============================================================================
+# 《幻境传说》游戏框架 - GitHub Actions CI/CD 配置
+# ============================================================================
+# 文件名: .github/workflows/ci.yml
+# 说明: 自动化构建、测试和部署流水线
+# 作者: 彭承康
+# 创建时间: 2025-07-20
+# ============================================================================
+
+name: CI/CD Pipeline
+
+# 触发条件
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+# 环境变量
+env:
+  BUILD_TYPE: Release
+  QT_VERSION: 6.5.0
+
+# 任务定义
+jobs:
+  # ----------------------------------------------------------------------------
+  # Linux构建任务
+  # ----------------------------------------------------------------------------
+  build-linux:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        lfs: true
+        submodules: recursive
+    
+    - name: 安装系统依赖
+      run: |
+        sudo apt update
+        sudo apt install -y \
+          build-essential \
+          cmake \
+          ninja-build \
+          pkg-config \
+          libgrpc++-dev \
+          libprotobuf-dev \
+          protobuf-compiler-grpc \
+          python3-dev \
+          python3-pip
+    
+    - name: 安装Qt6
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ env.QT_VERSION }}
+        modules: 'qtquick qtmultimedia qtnetwork'
+    
+    - name: 安装Python依赖
+      run: |
+        pip3 install -r tools/requirements.txt
+    
+    - name: 配置CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+          -DCMAKE_INSTALL_PREFIX=install \
+          -G Ninja
+    
+    - name: 构建项目
+      run: cmake --build build --config ${{ env.BUILD_TYPE }} --target build_all
+    
+    - name: 运行测试
+      run: |
+        cd build
+        ctest --output-on-failure --parallel 4
+    
+    - name: 安装项目
+      run: cmake --install build
+    
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-build
+        path: |
+          build/bin/
+          install/
+        retention-days: 7
+
+  # ----------------------------------------------------------------------------
+  # Windows构建任务
+  # ----------------------------------------------------------------------------
+  build-windows:
+    runs-on: windows-2022
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        lfs: true
+        submodules: recursive
+    
+    - name: 安装Qt6
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ env.QT_VERSION }}
+        modules: 'qtquick qtmultimedia qtnetwork'
+        arch: win64_msvc2019_64
+    
+    - name: 安装vcpkg依赖
+      run: |
+        vcpkg install grpc:x64-windows protobuf:x64-windows
+    
+    - name: 配置CMake
+      run: |
+        cmake -B build `
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `
+          -DCMAKE_TOOLCHAIN_FILE="C:/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+          -A x64
+    
+    - name: 构建项目
+      run: cmake --build build --config ${{ env.BUILD_TYPE }} --target build_all
+    
+    - name: 运行测试
+      run: |
+        cd build
+        ctest -C ${{ env.BUILD_TYPE }} --output-on-failure --parallel 4
+    
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-build
+        path: |
+          build/bin/
+          build/${{ env.BUILD_TYPE }}/
+        retention-days: 7
+
+  # ----------------------------------------------------------------------------
+  # macOS构建任务
+  # ----------------------------------------------------------------------------
+  build-macos:
+    runs-on: macos-12
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+      with:
+        lfs: true
+        submodules: recursive
+    
+    - name: 安装系统依赖
+      run: |
+        brew install cmake ninja grpc protobuf python3
+    
+    - name: 安装Qt6
+      uses: jurplel/install-qt-action@v3
+      with:
+        version: ${{ env.QT_VERSION }}
+        modules: 'qtquick qtmultimedia qtnetwork'
+    
+    - name: 安装Python依赖
+      run: |
+        pip3 install -r tools/requirements.txt
+    
+    - name: 配置CMake
+      run: |
+        cmake -B build \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+          -DCMAKE_INSTALL_PREFIX=install \
+          -G Ninja
+    
+    - name: 构建项目
+      run: cmake --build build --config ${{ env.BUILD_TYPE }} --target build_all
+    
+    - name: 运行测试
+      run: |
+        cd build
+        ctest --output-on-failure --parallel 4
+    
+    - name: 创建应用包
+      run: |
+        cmake --install build
+        # 创建macOS应用包的额外步骤
+    
+    - name: 上传构建产物
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-build
+        path: |
+          build/bin/
+          install/
+        retention-days: 7
+
+  # ----------------------------------------------------------------------------
+  # 代码质量检查
+  # ----------------------------------------------------------------------------
+  code-quality:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+    
+    - name: 安装工具
+      run: |
+        sudo apt update
+        sudo apt install -y clang-format cppcheck
+        pip3 install cpplint
+    
+    - name: 代码格式检查
+      run: |
+        find . -name "*.cpp" -o -name "*.h" -o -name "*.hpp" | \
+        xargs clang-format --dry-run --Werror
+    
+    - name: 静态代码分析
+      run: |
+        cppcheck --enable=all --error-exitcode=1 \
+          --suppress=missingIncludeSystem \
+          --inline-suppr \
+          algorithm/src/ strategy/src/ application/src/
+    
+    - name: Python代码检查
+      run: |
+        cd tools
+        python3 -m flake8 . --max-line-length=100
+        python3 -m pylint **/*.py || true
+
+  # ----------------------------------------------------------------------------
+  # 文档生成
+  # ----------------------------------------------------------------------------
+  generate-docs:
+    runs-on: ubuntu-22.04
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: 检出代码
+      uses: actions/checkout@v4
+    
+    - name: 安装Doxygen
+      run: |
+        sudo apt update
+        sudo apt install -y doxygen graphviz
+    
+    - name: 生成API文档
+      run: |
+        doxygen docs/Doxyfile
+    
+    - name: 部署到GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/html
+
+  # ----------------------------------------------------------------------------
+  # 发布任务
+  # ----------------------------------------------------------------------------
+  release:
+    needs: [build-linux, build-windows, build-macos]
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'release'
+    
+    steps:
+    - name: 下载所有构建产物
+      uses: actions/download-artifact@v4
+    
+    - name: 创建发布包
+      run: |
+        # 创建Linux发布包
+        tar -czf fantasy-legend-linux.tar.gz -C linux-build .
+        
+        # 创建Windows发布包
+        zip -r fantasy-legend-windows.zip windows-build/
+        
+        # 创建macOS发布包
+        tar -czf fantasy-legend-macos.tar.gz -C macos-build .
+    
+    - name: 上传发布资产
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          fantasy-legend-linux.tar.gz
+          fantasy-legend-windows.zip
+          fantasy-legend-macos.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
