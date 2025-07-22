@@ -1,3 +1,0 @@
-/home/pck/Game/algorithm/build/CMakeFiles/algorithm_service.dir
-/home/pck/Game/algorithm/build/CMakeFiles/edit_cache.dir
-/home/pck/Game/algorithm/build/CMakeFiles/rebuild_cache.dir

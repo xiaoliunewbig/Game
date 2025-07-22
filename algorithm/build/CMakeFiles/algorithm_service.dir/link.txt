@@ -1,2 +1,0 @@
-/usr/bin/ar qc libalgorithm_service.a CMakeFiles/algorithm_service.dir/src/AlgorithmService.cpp.o CMakeFiles/algorithm_service.dir/src/DamageCalculator.cpp.o CMakeFiles/algorithm_service.dir/src/AIDecisionEngine.cpp.o CMakeFiles/algorithm_service.dir/src/SkillTreeManager.cpp.o
-/usr/bin/ranlib libalgorithm_service.a
