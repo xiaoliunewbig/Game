@@ -324,21 +324,22 @@ private slots:
 
 private:
     /**
+     * @brief 注册场景类型
+     */
+    void registerSceneTypes();
+    
+    /**
+     * @brief 清理资源
+     */
+    void cleanup();
+    
+    /**
      * @brief 创建场景实例
-     * 
-     * 根据场景名称创建对应的场景对象。
-     * 
-     * @param sceneName 场景名称
-     * @return std::shared_ptr<Scene> 场景对象指针
      */
     std::shared_ptr<Scene> createScene(const QString &sceneName);
     
     /**
      * @brief 开始转场动画
-     * 
-     * @param fromScene 源场景
-     * @param toScene 目标场景
-     * @param transitionType 转场类型
      */
     void startTransition(std::shared_ptr<Scene> fromScene,
                         std::shared_ptr<Scene> toScene,
@@ -346,9 +347,6 @@ private:
     
     /**
      * @brief 完成场景切换
-     * 
-     * @param newScene 新场景
-     * @param sceneData 场景数据
      */
     void completeSceneSwitch(std::shared_ptr<Scene> newScene, const QJsonObject &sceneData);
     
@@ -357,60 +355,34 @@ private:
      */
     void cleanupUnusedScenes();
 
-private:
     /**
-     * @brief 场景缓存
-     * 
-     * 存储所有已加载的场景对象。
-     */
+     * @brief 获取当前场景名称
+     * @return 当前场景名称
+    */
+    QString getCurrentSceneName() const; 
+
+private:
+    // 场景缓存
     QHash<QString, std::shared_ptr<Scene>> m_scenes;
     
-    /**
-     * @brief 场景堆栈
-     * 
-     * 存储场景切换的历史堆栈。
-     */
-    QStack<std::shared_ptr<Scene>> m_sceneStack;
+    // 场景堆栈 - 修改为存储场景名称而不是场景对象
+    QStack<QString> m_sceneStack;
     
-    /**
-     * @brief 当前活跃场景
-     * 
-     * 当前正在显示和更新的场景。
-     */
+    // 当前活跃场景
     std::shared_ptr<Scene> m_currentScene;
     
-    /**
-     * @brief 资源管理器引用
-     * 
-     * 用于加载场景资源的资源管理器。
-     */
+    // 资源管理器引用
     ResourceManager *m_resourceManager;
     
-    /**
-     * @brief 当前场景名称
-     * 
-     * 当前活跃场景的名称。
-     */
+    // 当前场景名称
     QString m_currentSceneName;
     
-    /**
-     * @brief 转场状态
-     * 
-     * 是否正在进行场景切换。
-     */
+    // 转场状态
     bool m_isTransitioning;
     
-    /**
-     * @brief 转场进度
-     * 
-     * 当前场景切换的进度（0.0-1.0）。
-     */
+    // 转场进度
     float m_transitionProgress;
     
-    /**
-     * @brief 场景配置
-     * 
-     * 存储场景的配置信息。
-     */
+    // 场景配置
     QJsonObject m_sceneConfig;
 };

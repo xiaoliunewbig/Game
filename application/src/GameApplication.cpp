@@ -17,6 +17,7 @@
 
 #include <QQmlContext>
 #include <QQuickStyle>
+#include <QApplication> 
 #include <QDir>
 
 /**
@@ -52,43 +53,43 @@ GameApplication::~GameApplication() = default;
 bool GameApplication::initialize()
 {
     try {
-        // 1. 创建核心子系统
+        // 1. 创建子系统实例（关键修复）
         m_resourceManager = std::make_unique<ResourceManager>();
-        m_audioManager = std::make_unique<AudioManager>();
+        m_sceneManager = std::make_unique<SceneManager>();
         m_networkManager = std::make_unique<NetworkManager>();
+        m_audioManager = std::make_unique<AudioManager>();
         m_gameEngine = std::make_unique<GameEngine>();
-
-        // 2. 初始化各个子系统
+        
+        //2.  初始化资源管理器
         if (!m_resourceManager->initialize()) {
+            qCritical() << "GameApplication: 资源管理器初始化失败";
             return false;
         }
         
-        if (!m_audioManager->initialize()) {
+        //3. 初始化场景管理器
+        if (!m_sceneManager->initialize(m_resourceManager)) {
+            qCritical() << "GameApplication: 场景管理器初始化失败";
             return false;
         }
         
-        if (!m_networkManager->initialize()) {
+        //4. 初始化游戏引擎
+        if (!m_gameEngine->initialize(m_sceneManager, m_resourceManager, 
+                                     m_networkManager, m_audioManager)) {
+            qCritical() << "GameApplication: 游戏引擎初始化失败";
             return false;
         }
         
-        if (!m_gameEngine->initialize()) {
-            return false;
-        }
-
-        // 3. 注册QML类型
+        // 5. 注册QML类型和建立连接
         registerQmlTypes();
-
-        // 4. 建立信号槽连接
         setupConnections();
-
-        // 5. 配置QML引擎
-        m_engine.rootContext()->setContextProperty("gameEngine", m_gameEngine.get());
-        m_engine.rootContext()->setContextProperty("audioManager", m_audioManager.get());
-        m_engine.rootContext()->setContextProperty("networkManager", m_networkManager.get());
-
+        
+        m_isInitialized = true;
+        //emit initializationChanged();
+        qDebug() << "GameApplication: 应用程序初始化成功";
         return true;
-    } catch (const std::exception&) {
-        // 初始化过程中发生异常
+        
+    } catch (const std::exception& e) {
+        qCritical() << "GameApplication: 初始化异常:" << e.what();
         return false;
     }
 }
@@ -100,8 +101,17 @@ bool GameApplication::initialize()
  */
 void GameApplication::start()
 {
+    if (!m_isInitialized) {
+        qCritical() << "GameApplication: 未初始化，无法启动";
+        return;
+    }
+
     // 设置UI样式
     QQuickStyle::setStyle("Material");
+
+    // 向QML暴露核心管理器（关键补充）
+    m_engine.rootContext()->setContextProperty("gameEngine", m_gameEngine.get());
+    m_engine.rootContext()->setContextProperty("inventorySystem", m_gameEngine->getInventorySystem());  
     
     // 加载主QML文件
     const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
@@ -109,8 +119,7 @@ void GameApplication::start()
     
     // 检查QML是否加载成功
     if (m_engine.rootObjects().isEmpty()) {
-        // QML加载失败，应用无法启动
-        return;
+        qCritical() << "GameApplication: QML文件加载失败";
     }
 }
 
@@ -150,11 +159,14 @@ void GameApplication::shutdown()
  * @param obj 创建的QML对象
  * @param objUrl QML文件URL
  */
-void GameApplication::onEngineObjectCreated(QObject *obj, const QUrl &objUrl)
+void GameApplication::onEngineObjectCreated(QObject* object, const QUrl& url)
 {
-    if (!obj && objUrl == QUrl(QStringLiteral("qrc:/qml/main.qml"))) {
-        // 主QML文件加载失败
-        QCoreApplication::exit(-1);
+    Q_UNUSED(object)
+    Q_UNUSED(url)
+    
+    if (!object) {
+        qCritical() << "GameApplication: QML引擎对象创建失败";
+        QApplication::exit(-1);
     }
 }
 

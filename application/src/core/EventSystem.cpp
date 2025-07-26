@@ -15,7 +15,9 @@
 // ==================== GameEvent 实现 ====================
 
 GameEvent::GameEvent(Type type, Priority priority)
-    : m_type(type), m_priority(priority), m_timestamp(QDateTime::currentMSecsSinceEpoch())
+    : m_type(type)
+    , m_priority(priority)
+    , m_timestamp(QDateTime::currentMSecsSinceEpoch())
 {
 }
 
@@ -111,10 +113,7 @@ void EventSystem::sendDelayedEvent(const GameEvent &event, int delayMs)
                  << "延迟" << delayMs << "毫秒";
     }
     
-    DelayedEvent delayedEvent;
-    delayedEvent.event = event;
-    delayedEvent.triggerTime = QDateTime::currentMSecsSinceEpoch() + delayMs;
-    
+    DelayedEvent delayedEvent{event, QDateTime::currentMSecsSinceEpoch() + delayMs};
     m_delayedEvents.append(delayedEvent);
 }
 
@@ -162,32 +161,38 @@ void EventSystem::registerHandler(GameEvent::Type eventType, const EventHandler 
 
 void EventSystem::unregisterListener(GameEvent::Type eventType, IEventListener* listener)
 {
-    if (!listener) {
-        return;
+    auto it = m_listeners.find(eventType);
+    if (it != m_listeners.end()) {
+        it.value().removeIf([listener](const ListenerInfo& info) {
+            return !info.isHandler && info.listener == listener;
+        });
+        
+        if (it.value().isEmpty()) {
+            m_listeners.erase(it);
+        }
     }
     
-    auto& listeners = m_listeners[eventType];
-    listeners.removeIf([listener](const ListenerInfo& info) {
-        return !info.isHandler && info.listener == listener;
-    });
-    
     if (m_eventLogging) {
-        qDebug() << "EventSystem: 取消注册监听器" << listener 
-                 << "事件类型" << static_cast<int>(eventType);
+        qDebug() << "EventSystem: 取消注册监听器" << listener;
     }
 }
 
 void EventSystem::unregisterAllListeners(IEventListener* listener)
 {
-    if (!listener) {
-        return;
-    }
-    
-    for (auto& pair : m_listeners) {
-        auto& listeners = pair.second;
+    for (auto it = m_listeners.begin(); it != m_listeners.end(); ++it) {
+        auto& listeners = it.value();
         listeners.removeIf([listener](const ListenerInfo& info) {
             return !info.isHandler && info.listener == listener;
         });
+    }
+    
+    // 移除空的事件类型
+    for (auto it = m_listeners.begin(); it != m_listeners.end();) {
+        if (it.value().isEmpty()) {
+            it = m_listeners.erase(it);
+        } else {
+            ++it;
+        }
     }
     
     if (m_eventLogging) {
@@ -199,26 +204,15 @@ void EventSystem::unregisterAllListeners(IEventListener* listener)
 
 int EventSystem::addEventFilter(const EventFilter &filter, int priority)
 {
-    if (!filter) {
-        qWarning() << "EventSystem: 尝试添加空过滤器";
-        return -1;
-    }
-    
     FilterInfo info;
+    info.id = m_nextFilterId++;
     info.filter = filter;
     info.priority = priority;
-    info.id = m_nextFilterId++;
     
     m_eventFilters.append(info);
     
-    // 按优先级排序
-    std::sort(m_eventFilters.begin(), m_eventFilters.end(),
-              [](const FilterInfo& a, const FilterInfo& b) {
-                  return a.priority > b.priority;
-              });
-    
     if (m_eventLogging) {
-        qDebug() << "EventSystem: 添加事件过滤器" << info.id << "优先级" << priority;
+        qDebug() << "EventSystem: 添加事件过滤器" << info.id;
     }
     
     return info.id;
@@ -271,8 +265,6 @@ int EventSystem::getQueueSize() const
     return m_eventQueue.size();
 }
 
-// ==================== 统计和调试接口 ====================
-
 int EventSystem::getEventCount(GameEvent::Type eventType) const
 {
     return m_eventStats.value(eventType, 0);
@@ -281,7 +273,6 @@ int EventSystem::getEventCount(GameEvent::Type eventType) const
 void EventSystem::resetEventStats()
 {
     m_eventStats.clear();
-    
     if (m_eventLogging) {
         qDebug() << "EventSystem: 重置事件统计";
     }
@@ -290,7 +281,7 @@ void EventSystem::resetEventStats()
 void EventSystem::setEventLogging(bool enabled)
 {
     m_eventLogging = enabled;
-    qDebug() << "EventSystem: 事件日志记录" << (enabled ? "启用" : "禁用");
+    qDebug() << "EventSystem: 事件日志" << (enabled ? "启用" : "禁用");
 }
 
 // ==================== 私有槽函数 ====================

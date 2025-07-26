@@ -361,6 +361,30 @@ private:
      */
     void checkMemoryLimit();
 
+        /**
+     * @brief 获取已加载资源数量
+     * @return 已加载资源数量
+     */
+    int getLoadedResourceCount() const;
+    
+    /**
+     * @brief 获取总资源大小
+     * @return 总资源大小（字节）
+     */
+    qint64 getTotalResourceSize() const;
+    
+    /**
+     * @brief 设置最大缓存大小
+     * @param maxSize 最大缓存大小（字节）
+     */
+    void setMaxCacheSize(qint64 maxSize);
+    
+    /**
+     * @brief 获取最大缓存大小
+     * @return 最大缓存大小（字节）
+     */
+    qint64 getMaxCacheSize() const;
+
 private:
     /**
      * @brief 资源缓存
@@ -424,4 +448,22 @@ private:
      * 已完成加载的资源数量。
      */
     int m_completedLoads;
+    
+    // 资源缓存
+    QMap<QString, QPixmap> m_textureCache;      ///< 纹理缓存
+    QMap<QString, QFont> m_fontCache;           ///< 字体缓存
+    
+    // 资源路径
+    QStringList m_resourcePaths;                ///< 资源搜索路径列表
+    
+    // 统计信息
+    int m_loadedResourceCount;                  ///< 已加载资源数量
+    qint64 m_totalResourceSize;                 ///< 总资源大小
+    qint64 m_maxCacheSize;                      ///< 最大缓存大小
+    
+    // 私有方法声明
+    void setupResourcePaths();
+    bool validateResourcePaths();
+    void preloadCoreResources();
+    QString findResourcePath(const QString& fileName) const;
 };

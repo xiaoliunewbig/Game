@@ -4,46 +4,24 @@
  * 作者: 彭承康
  * 创建时间: 2025-07-20
  * 版本: v1.0.0
- * 
- * 功能描述:
- * - 管理游戏中所有场景的生命周期
- * - 提供场景切换的平滑过渡
- * - 支持场景预加载和延迟加载
- * - 处理场景间的数据传递
- * 
- * 依赖项:
- * - Qt Core (QObject, QString, QDebug)
- * - EventSystem (事件系统)
- * 
- * 使用示例:
- * SceneManager* sceneManager = new SceneManager();
- * sceneManager->initialize();
- * sceneManager->loadScene("MainMenu");
  */
 
 #include "core/SceneManager.h"
 #include "core/EventSystem.h"
+#include "core/ResourceManager.h"
 #include <QDebug>
 
-/**
- * @brief 构造函数
- * @param parent 父对象指针，用于Qt对象树管理
- * 
- * 初始化场景管理器的基本状态，设置默认值
- */
 SceneManager::SceneManager(QObject *parent)
     : QObject(parent)
-    , m_currentScene(nullptr)      // 当前场景指针初始化为空
-    , m_isTransitioning(false)     // 场景切换状态标志
+    , m_currentScene(nullptr)
+    , m_isTransitioning(false)
+    , m_transitionProgress(0.0f)
+    , m_currentSceneName("")
+    , m_resourceManager(nullptr)
 {
     qDebug() << "SceneManager: 构造函数调用，初始化基本状态";
 }
 
-/**
- * @brief 析构函数
- * 
- * 清理所有场景资源，确保内存正确释放
- */
 SceneManager::~SceneManager()
 {
     qDebug() << "SceneManager: 析构函数调用，开始清理资源";
@@ -51,25 +29,20 @@ SceneManager::~SceneManager()
     qDebug() << "SceneManager: 析构完成";
 }
 
-/**
- * @brief 初始化场景管理器
- * @return bool 初始化是否成功
- * 
- * 执行场景管理器的初始化工作：
- * 1. 注册所有可用的场景类型
- * 2. 设置场景切换的默认参数
- * 3. 连接必要的信号槽
- */
-bool SceneManager::initialize()
+bool SceneManager::initialize(ResourceManager *resourceManager)
 {
     qDebug() << "SceneManager: 开始初始化";
+    
+    if (!resourceManager) {
+        qCritical() << "SceneManager: ResourceManager为空";
+        return false;
+    }
+    
+    m_resourceManager = resourceManager;
     
     try {
         // 注册所有内置场景类型
         registerSceneTypes();
-        
-        // TODO: 设置场景切换动画参数
-        // TODO: 连接事件系统信号
         
         qDebug() << "SceneManager: 初始化成功";
         return true;
@@ -80,19 +53,6 @@ bool SceneManager::initialize()
     }
 }
 
-/**
- * @brief 注册场景类型
- * 
- * 将所有可用的场景类型注册到场景管理器中，
- * 包括内置场景和自定义场景类型
- * 
- * 支持的场景类型：
- * - MainMenu: 主菜单场景
- * - Gameplay: 游戏主场景
- * - Battle: 战斗场景
- * - Inventory: 物品栏场景
- * - Settings: 设置场景
- */
 void SceneManager::registerSceneTypes()
 {
     qDebug() << "SceneManager: 开始注册场景类型";
@@ -106,34 +66,20 @@ void SceneManager::registerSceneTypes()
     qDebug() << "SceneManager: 场景类型注册完成";
 }
 
-/**
- * @brief 加载指定场景
- * @param sceneName 要加载的场景名称
- * @return bool 场景加载是否成功
- * 
- * 场景加载流程：
- * 1. 检查是否正在进行场景切换
- * 2. 卸载当前场景（调用onExit）
- * 3. 加载新场景（调用onCreate和onEnter）
- * 4. 更新当前场景指针
- * 5. 发送场景切换完成信号
- * 
- * 注意：此函数是线程安全的，多次调用会被忽略
- */
-bool SceneManager::loadScene(const QString &sceneName)
+void SceneManager::loadScene(const QString &sceneName)
 {
     qDebug() << "SceneManager: 请求加载场景:" << sceneName;
     
     // 防止重复切换场景
     if (m_isTransitioning) {
         qWarning() << "SceneManager: 场景切换进行中，忽略加载请求:" << sceneName;
-        return false;
+        return;
     }
     
     // 验证场景名称
     if (sceneName.isEmpty()) {
         qWarning() << "SceneManager: 场景名称为空，加载失败";
-        return false;
+        return;
     }
     
     // 设置切换状态标志
@@ -143,19 +89,13 @@ bool SceneManager::loadScene(const QString &sceneName)
         // 卸载当前场景
         if (m_currentScene) {
             qDebug() << "SceneManager: 卸载当前场景";
-            m_currentScene->onExit();
-            // TODO: 释放场景资源
+            // m_currentScene->onExit();
             m_currentScene = nullptr;
         }
         
         // 加载新场景
         qDebug() << "SceneManager: 开始加载新场景:" << sceneName;
-        // TODO: 实际场景加载逻辑
-        // m_currentScene = createScene(sceneName);
-        // if (m_currentScene) {
-        //     m_currentScene->onCreate();
-        //     m_currentScene->onEnter();
-        // }
+        m_currentSceneName = sceneName;
         
         // 重置切换状态
         m_isTransitioning = false;
@@ -164,25 +104,46 @@ bool SceneManager::loadScene(const QString &sceneName)
         emit sceneTransitionCompleted(sceneName);
         qDebug() << "SceneManager: 场景加载完成:" << sceneName;
         
-        return true;
-        
     } catch (const std::exception& e) {
         qCritical() << "SceneManager: 场景加载异常:" << e.what();
         m_isTransitioning = false;
-        return false;
     }
 }
 
-/**
- * @brief 清理场景管理器资源
- * 
- * 执行完整的资源清理：
- * 1. 卸载当前场景
- * 2. 清理场景缓存
- * 3. 重置所有状态变量
- * 
- * 此函数在析构函数中调用，也可以手动调用进行重置
- */
+QString SceneManager::getCurrentSceneName() const
+{
+    return m_currentSceneName;
+}
+
+bool SceneManager::pushScene(const QString &sceneName, TransitionType transitionType, const QJsonObject &sceneData)
+{
+    Q_UNUSED(transitionType)
+    Q_UNUSED(sceneData)
+    
+    // 将当前场景名称推入堆栈
+    if (!m_currentSceneName.isEmpty()) {
+        m_sceneStack.push(m_currentSceneName);
+    }
+    
+    loadScene(sceneName);
+    return true;
+}
+
+bool SceneManager::popScene(TransitionType transitionType, const QJsonObject &returnData)
+{
+    Q_UNUSED(transitionType)
+    Q_UNUSED(returnData)
+    
+    if (m_sceneStack.isEmpty()) {
+        qWarning() << "SceneManager: 场景堆栈为空，无法弹出";
+        return false;
+    }
+    
+    QString previousScene = m_sceneStack.pop();
+    loadScene(previousScene);
+    return true;
+}
+
 void SceneManager::cleanup()
 {
     qDebug() << "SceneManager: 开始清理资源";
@@ -190,16 +151,15 @@ void SceneManager::cleanup()
     // 卸载当前场景
     if (m_currentScene) {
         qDebug() << "SceneManager: 卸载当前场景";
-        m_currentScene->onExit();
-        // TODO: 删除场景对象
         m_currentScene = nullptr;
     }
     
-    // 清理场景缓存
-    // TODO: 清理预加载的场景
+    // 清理场景堆栈
+    m_sceneStack.clear();
     
     // 重置状态
     m_isTransitioning = false;
+    m_currentSceneName.clear();
     
     qDebug() << "SceneManager: 资源清理完成";
 }

@@ -1,0 +1,12 @@
+{
+    "ui": {
+        "theme": "dark",
+        "font_size": 12,
+        "language": "zh_CN"
+    },
+    "panels": {
+        "inventory_visible": true,
+        "chat_visible": true,
+        "minimap_visible": true
+    }
+}

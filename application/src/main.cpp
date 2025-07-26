@@ -1,76 +1,140 @@
 /*
  * 文件名: main.cpp
- * 说明: 游戏应用程序的主入口点。
+ * 说明: 应用程序入口点
  * 作者: 彭承康
  * 创建时间: 2025-07-20
- *
- * 本文件包含应用程序的main函数，负责创建QApplication实例，
- * 初始化游戏应用程序，并启动主事件循环。提供应用程序的
- * 基础配置和错误处理机制。
+ * 版本: v1.0.0
  */
+
 #include <QApplication>
 #include <QQmlApplicationEngine>
-#include <QQuickStyle>
 #include <QDir>
 #include <QStandardPaths>
-#include <QLoggingCategory>
-
+#include <QDebug>
+#include <QPalette>
+#include <QColor>
 #include "GameApplication.h"
-#include "core/GameEngine.h"
+#include "utils/Logger.h"
 
 /**
- * @brief 应用程序主入口函数
- * 
- * 创建并配置Qt应用程序，初始化游戏系统，启动主事件循环。
- * 
- * @param argc 命令行参数数量
- * @param argv 命令行参数数组
- * @return int 应用程序退出码
- * @retval 0 正常退出
- * @retval -1 初始化失败
- * @retval 其他 异常退出
+ * @brief 设置应用程序基本信息
+ */
+void setupApplicationInfo()
+{
+    QCoreApplication::setApplicationName("幻境传说");
+    QCoreApplication::setApplicationVersion("1.0.0");
+    QCoreApplication::setOrganizationName("Game Studio");
+    QCoreApplication::setOrganizationDomain("gamestudio.com");
+}
+
+/**
+ * @brief 设置应用程序样式和主题
+ */
+void setupApplicationStyle(QApplication& app)
+{
+    // 设置应用程序样式为深色主题
+    app.setStyle("Fusion");
+    
+    QPalette darkPalette;
+    darkPalette.setColor(QPalette::Window, QColor(53, 53, 53));
+    darkPalette.setColor(QPalette::WindowText, Qt::white);
+    darkPalette.setColor(QPalette::Base, QColor(25, 25, 25));
+    darkPalette.setColor(QPalette::AlternateBase, QColor(53, 53, 53));
+    darkPalette.setColor(QPalette::ToolTipBase, Qt::white);
+    darkPalette.setColor(QPalette::ToolTipText, Qt::white);
+    darkPalette.setColor(QPalette::Text, Qt::white);
+    darkPalette.setColor(QPalette::Button, QColor(53, 53, 53));
+    darkPalette.setColor(QPalette::ButtonText, Qt::white);
+    darkPalette.setColor(QPalette::BrightText, Qt::red);
+    darkPalette.setColor(QPalette::Link, QColor(42, 130, 218));
+    darkPalette.setColor(QPalette::Highlight, QColor(42, 130, 218));
+    darkPalette.setColor(QPalette::HighlightedText, Qt::black);
+    
+    app.setPalette(darkPalette);
+}
+
+/**
+ * @brief 初始化日志系统
+ */
+void initializeLogging()
+{
+    // 创建日志目录
+    QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
+    QDir().mkpath(logDir);
+    
+    // 初始化日志系统
+    // Logger::instance()->initialize(logDir + "/game.log");
+    
+    qDebug() << "日志系统初始化完成，日志目录:" << logDir;
+}
+
+/**
+ * @brief 加载自定义字体
+ */
+void loadCustomFonts()
+{
+    // 加载游戏字体
+    QString fontPath = ":/resources/fonts/game_font.ttf";
+    if (QFile::exists(fontPath)) {
+        int fontId = QFontDatabase::addApplicationFont(fontPath);
+        if (fontId != -1) {
+            QStringList fontFamilies = QFontDatabase::applicationFontFamilies(fontId);
+            if (!fontFamilies.isEmpty()) {
+                qDebug() << "成功加载自定义字体:" << fontFamilies.first();
+            }
+        }
+    }
+}
+
+/**
+ * @brief 主函数
  */
 int main(int argc, char *argv[])
 {
-    // 创建Qt应用程序实例
+    // 创建应用程序实例
     QApplication app(argc, argv);
     
     // 设置应用程序基本信息
-    app.setApplicationName("幻境传说");           // 应用程序名称
-    app.setApplicationVersion("1.0.0");          // 版本号
-    app.setOrganizationName("Game Studio");      // 组织名称
-    app.setOrganizationDomain("gamestudio.com"); // 组织域名
+    setupApplicationInfo();
     
-    // 设置应用程序图标
-    app.setWindowIcon(QIcon(":/resources/images/app_icon.png"));
+    // 初始化日志系统
+    initializeLogging();
     
-    // 配置日志系统
-    QLoggingCategory::setFilterRules("qt.qml.debug=false");
+    // 设置应用程序样式
+    setupApplicationStyle(app);
     
-    // 设置UI样式主题
-    QQuickStyle::setStyle("Material");
+    // 加载自定义字体
+    loadCustomFonts();
     
-    // 确保应用程序数据目录存在
-    QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(dataDir);
-    
-    // 创建游戏应用程序实例
-    GameApplication gameApp;
-    
-    // 初始化游戏应用程序
-    if (!gameApp.initialize()) {
-        qCritical() << "游戏应用程序初始化失败";
+    try {
+        // 创建游戏应用程序
+        GameApplication gameApp;
+        
+        // 初始化游戏应用程序
+        if (!gameApp.initialize()) {
+            qCritical() << "游戏应用程序初始化失败";
+            return -1;
+        }
+        
+        // 启动游戏应用程序
+        gameApp.start();
+        
+        qDebug() << "游戏应用程序启动成功";
+        
+        // 进入事件循环
+        int result = app.exec();
+        
+        // 关闭游戏应用程序
+        gameApp.shutdown();
+        
+        qDebug() << "应用程序正常退出，返回码:" << result;
+        return result;
+        
+    } catch (const std::exception& e) {
+        qCritical() << "应用程序异常:" << e.what();
+        return -1;
+    } catch (...) {
+        qCritical() << "应用程序发生未知异常";
         return -1;
     }
-    
-    // 启动游戏应用程序
-    gameApp.start();
-    
-    // 进入主事件循环
-    int result = app.exec();
-    
-    // 应用程序退出时执行清理
-    gameApp.shutdown();
-    
-    return result;
 }

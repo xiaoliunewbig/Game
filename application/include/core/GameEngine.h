@@ -102,6 +102,14 @@ public:
                    ResourceManager *resourceManager,
                    NetworkManager *networkManager,
                    AudioManager *audioManager);
+
+    /**
+     * @brief 获取背包系统实例
+     * @return 背包系统指针，供QML访问
+     */
+    Game::InventorySystem* getInventorySystem() const { 
+        return m_inventorySystem.get();  // 使用unique_ptr的get()方法返回原始指针
+    }
     
     /**
      * @brief 启动游戏引擎
@@ -418,7 +426,7 @@ private:
     AudioManager *m_audioManager;
     
     /**
-     * @brief 游戏状态对象
+     * @brief 游戏系统
      * 
      * 存储当前游戏的状态数据。
      */
@@ -443,7 +451,7 @@ private:
      * 
      * 处理物品和背包逻辑的系统。
      */
-    std::unique_ptr<InventorySystem> m_inventorySystem;
+     std::unique_ptr<Game::InventorySystem> m_inventorySystem;
     
     /**
      * @brief 当前游戏状态

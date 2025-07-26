@@ -393,9 +393,9 @@ private:
     QList<FilterInfo> m_eventFilters;                                ///< 事件过滤器列表
     QMap<GameEvent::Type, int> m_eventStats;                        ///< 事件统计
     QTimer* m_processTimer;                                          ///< 事件处理定时器
-    QMutex m_queueMutex;                                            ///< 队列互斥锁
     bool m_eventLogging;                                            ///< 是否启用事件日志
     int m_nextFilterId;                                             ///< 下一个过滤器ID
+    mutable QMutex m_queueMutex;                                      ///< 队列互斥锁   
 };
 
 // ==================== 便利宏定义 ====================

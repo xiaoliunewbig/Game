@@ -107,7 +107,7 @@ private slots:
      * @param obj 创建的QML对象指针
      * @param objUrl QML文件的URL
      */
-    void onEngineObjectCreated(QObject *obj, const QUrl &objUrl);
+    void onEngineObjectCreated(QObject *object, const QUrl &url);
 
 private:
     /**
@@ -184,4 +184,17 @@ private:
      * - 资源缓存策略
      */
     std::unique_ptr<ResourceManager> m_resourceManager;
+
+
+    /**
+     * @brief 场景管理器实例
+     * 负责游戏场景的加载、切换和管理
+     */
+    std::unique_ptr<SceneManager> m_sceneManager;  // 添加场景管理器
+    
+    /**
+     * @brief 初始化状态标志
+     * 标记应用程序是否已完成初始化
+     */
+    bool m_isInitialized = false;  // 添加初始化状态标志
 };
