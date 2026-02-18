@@ -2,7 +2,7 @@
  * 文件名: main.qml
  * 说明: 游戏应用程序的主QML界面文件。
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本文件定义了游戏的主窗口和界面结构，包括场景切换、
  * 主菜单、游戏界面等核心UI组件。作为QML界面的入口点，
@@ -31,21 +31,11 @@ ApplicationWindow {
 
     /**
      * @brief 游戏引擎访问属性
-     * 
-     * 提供对游戏引擎的便捷访问，用于QML组件调用游戏功能。
+     *
+     * 通过C++注入的上下文属性访问游戏引擎。
+     * gameEngine 由 GameApplication::start() 中的
+     * setContextProperty("gameEngine", ...) 注入。
      */
-    property alias gameEngine: gameEngineLoader.item
-
-    /**
-     * @brief 游戏引擎加载器
-     * 
-     * 动态加载游戏引擎组件，实现延迟初始化。
-     * 避免在QML解析时立即创建重量级对象。
-     */
-    Loader {
-        id: gameEngineLoader
-        source: "qrc:/GameEngine"   // 游戏引擎QML组件路径
-    }
 
     /**
      * @brief 主要内容区域
@@ -80,21 +70,21 @@ ApplicationWindow {
                  * @param playerName 玩家输入的角色名称
                  * @param profession 玩家选择的职业
                  */
-                onNewGameClicked: {
+                onNewGameClicked: function(playerName, profession) {
                     // 切换到游戏界面
                     stackView.push(gameplayComponent)
                     // 通知游戏引擎开始新游戏
                     gameEngine.startNewGame(playerName, profession)
                 }
-                
+
                 /**
                  * @brief 加载游戏点击处理
-                 * 
+                 *
                  * 当玩家选择加载存档时的处理逻辑。
-                 * 
+                 *
                  * @param saveSlot 选择的存档槽位
                  */
-                onLoadGameClicked: {
+                onLoadGameClicked: function(saveSlot) {
                     // 切换到游戏界面
                     stackView.push(gameplayComponent)
                     // 通知游戏引擎加载游戏
@@ -114,46 +104,60 @@ ApplicationWindow {
         Component {
             id: gameplayComponent
             GameplayView {
-                // 绑定游戏状态数据
-                gameState: gameEngine.gameState
-                
-                /**
-                 * @brief 战斗请求处理
-                 * 
-                 * 当玩家触发战斗时的处理。
-                 * 
-                 * @param enemyId 敌人ID
-                 */
-                onBattleRequested: gameEngine.enterBattle(enemyId)
-                
-                /**
-                 * @brief 技能使用处理
-                 * 
-                 * 当玩家使用技能时的处理。
-                 * 
-                 * @param skillId 技能ID
-                 * @param targetId 目标ID
-                 */
-                onSkillUsed: gameEngine.useSkill(skillId, targetId)
-                
-                /**
-                 * @brief 物品使用处理
-                 * 
-                 * 当玩家使用物品时的处理。
-                 * 
-                 * @param itemId 物品ID
-                 */
-                onItemUsed: gameEngine.useItem(itemId)
-                
-                /**
-                 * @brief 玩家移动处理
-                 * 
-                 * 当玩家移动时的处理。
-                 * 
-                 * @param x 目标X坐标
-                 * @param y 目标Y坐标
-                 */
-                onPlayerMoved: gameEngine.movePlayer(x, y)
+                onMenuRequested: {
+                    stackView.pop()
+                }
+                onInventoryRequested: {
+                    stackView.push(inventoryComponent)
+                }
+                onSkillTreeRequested: {
+                    skillTreeMsg.open()
+                }
+                onQuestsRequested: {
+                    questsMsg.open()
+                }
+                onSaveRequested: {
+                    gameEngine.saveGame(0)
+                    saveMsg.open()
+                }
+            }
+        }
+
+        Component {
+            id: inventoryComponent
+            InventoryView {
+                focus: true
+                Keys.onEscapePressed: {
+                    stackView.pop()
+                }
+
+                // 关闭按钮
+                Button {
+                    anchors.top: parent.top
+                    anchors.right: parent.right
+                    anchors.margins: 10
+                    text: "返回"
+                    z: 100
+                    width: 80
+                    height: 40
+
+                    background: Rectangle {
+                        color: parent.pressed ? "#c0392b" : "#e74c3c"
+                        radius: 6
+                    }
+
+                    contentItem: Text {
+                        text: parent.text
+                        color: "white"
+                        font.pixelSize: 14
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    onClicked: {
+                        stackView.pop()
+                    }
+                }
             }
         }
     }
@@ -165,38 +169,8 @@ ApplicationWindow {
      */
     Connections {
         target: gameEngine
-        
-        /**
-         * @brief 游戏开始处理
-         * 
-         * 当游戏成功开始时的处理逻辑。
-         */
-        function onGameStarted() {
-            console.log("游戏开始")
-            // 可以在这里添加游戏开始的特效或音效
-        }
-        
-        /**
-         * @brief 战斗开始处理
-         * 
-         * 当进入战斗状态时的处理逻辑。
-         * 
-         * @param battleData 战斗相关数据
-         */
-        function onBattleStarted(battleData) {
-            // 显示战斗界面
-            stackView.push("qrc:/BattleView.qml", {battleData: battleData})
-        }
-        
-        /**
-         * @brief 错误处理
-         * 
-         * 当游戏发生错误时的处理逻辑。
-         * 
-         * @param error 错误信息
-         */
+
         function onErrorOccurred(error) {
-            // 设置错误信息并显示错误对话框
             errorDialog.text = error
             errorDialog.open()
         }
@@ -231,6 +205,60 @@ ApplicationWindow {
         }
         
         // 对话框标准按钮（确定按钮）
+        standardButtons: Dialog.Ok
+    }
+
+    // 技能树提示对话框
+    Dialog {
+        id: skillTreeMsg
+        title: "技能树"
+        anchors.centerIn: parent
+        modal: true
+
+        Text {
+            text: "技能树系统开发中，敬请期待..."
+            color: "#333333"
+            font.pixelSize: 14
+            wrapMode: Text.WordWrap
+            width: parent.width
+        }
+
+        standardButtons: Dialog.Ok
+    }
+
+    // 任务系统提示对话框
+    Dialog {
+        id: questsMsg
+        title: "任务"
+        anchors.centerIn: parent
+        modal: true
+
+        Text {
+            text: "任务系统开发中，敬请期待..."
+            color: "#333333"
+            font.pixelSize: 14
+            wrapMode: Text.WordWrap
+            width: parent.width
+        }
+
+        standardButtons: Dialog.Ok
+    }
+
+    // 保存成功提示对话框
+    Dialog {
+        id: saveMsg
+        title: "保存游戏"
+        anchors.centerIn: parent
+        modal: true
+
+        Text {
+            text: "游戏已保存！"
+            color: "#333333"
+            font.pixelSize: 14
+            wrapMode: Text.WordWrap
+            width: parent.width
+        }
+
         standardButtons: Dialog.Ok
     }
 }

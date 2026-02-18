@@ -2,7 +2,7 @@
  * 文件名: GameState.cpp
  * 说明: 游戏状态管理器实现 - 管理游戏的全局状态和数据持久化
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  * 版本: v1.0.0
  * 
  * 功能描述:
@@ -32,6 +32,7 @@
 #include "game/GameState.h"
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonValue>
 #include <QFile>
 #include <QDir>
 #include <QStandardPaths>
@@ -431,6 +432,20 @@ void GameState::setPlayerClass(PlayerClass playerClass)
     emit playerClassChanged(m_playerClass);
 }
 
+void GameState::setCurrentScene(const QString &scene)
+{
+    QMutexLocker locker(&m_mutex);
+
+    if (m_currentScene == scene) {
+        return;
+    }
+
+    qDebug() << "GameState: 切换场景:" << m_currentScene << "->" << scene;
+
+    m_currentScene = scene;
+    emit currentSceneChanged(m_currentScene);
+}
+
 /**
  * @brief 获取状态名称字符串
  * @param state 状态枚举值
@@ -453,4 +468,53 @@ QString GameState::stateToString(State state)
         case State::Victory: return "胜利";
         default: return "未知状态";
     }
+}
+
+QJsonObject GameState::toJson() const
+{
+    QJsonObject json;
+    json["currentState"] = static_cast<int>(m_currentState);
+    json["playerLevel"] = m_playerLevel;
+    json["playerExperience"] = m_playerExperience;
+    json["playerGold"] = m_playerGold;
+    json["playerName"] = m_playerName;
+    json["playerClass"] = static_cast<int>(m_playerClass);
+    json["currentScene"] = m_currentScene;
+    json["gameProgress"] = static_cast<double>(m_gameProgress);
+
+    // 保存状态数据
+    QJsonObject stateData;
+    for (auto it = m_stateData.begin(); it != m_stateData.end(); ++it) {
+        stateData[it.key()] = QJsonValue::fromVariant(it.value());
+    }
+    json["stateData"] = stateData;
+
+    return json;
+}
+
+bool GameState::loadFromJson(const QJsonObject &json)
+{
+    if (json.isEmpty()) {
+        return false;
+    }
+
+    m_playerLevel = json["playerLevel"].toInt(1);
+    m_playerExperience = json["playerExperience"].toInt(0);
+    m_playerGold = json["playerGold"].toInt(0);
+    m_playerName = json["playerName"].toString();
+    m_playerClass = static_cast<PlayerClass>(json["playerClass"].toInt(0));
+    m_currentScene = json["currentScene"].toString();
+    m_gameProgress = static_cast<float>(json["gameProgress"].toDouble(0.0));
+
+    // 加载状态数据
+    QJsonObject stateData = json["stateData"].toObject();
+    m_stateData.clear();
+    for (auto it = stateData.begin(); it != stateData.end(); ++it) {
+        m_stateData[it.key()] = it.value().toVariant();
+    }
+
+    int stateInt = json["currentState"].toInt(static_cast<int>(State::MainMenu));
+    setState(static_cast<State>(stateInt));
+
+    return true;
 }

@@ -1,0 +1,112 @@
+/*
+ * 文件名: AlgorithmService.proto
+ * 说明: 算法层 gRPC 服务定义
+ * 作者: 彭承康
+ * 创建时间: 2026-02-18
+ *
+ * 定义算法层对外提供的 RPC 接口，包括伤害计算、技能树查询、
+ * AI 决策和数据校验四个核心服务。
+ */
+
+syntax = "proto3";
+
+package algorithm_proto;
+
+option cc_enable_arenas = true;
+
+// 算法服务
+service AlgorithmService {
+  // 战斗伤害计算
+  rpc CalculateDamage(CalculationRequest) returns (DamageResult);
+  // 获取技能树数据
+  rpc GetSkillTree(SkillTreeRequest) returns (SkillTree);
+  // AI 行为决策
+  rpc AIActionDecision(AIDecisionRequest) returns (ActionResponse);
+  // 输入数据校验
+  rpc ValidateInput(ValidationRequest) returns (ValidationResult);
+}
+
+// ========== 伤害计算 ==========
+
+// 伤害计算请求
+message CalculationRequest {
+  int32 attacker_id = 1;   // 攻击者 ID
+  int32 defender_id = 2;   // 防御者 ID
+  int32 skill_id = 3;      // 使用的技能 ID
+}
+
+// 伤害计算结果
+message DamageResult {
+  int32 damage = 1;         // 最终伤害值
+  string effect = 2;        // 效果描述（如"暴击！"、"火元素灼烧"）
+  bool is_critical = 3;     // 是否暴击
+  float element_multiplier = 4;  // 元素克制倍率
+}
+
+// ========== 技能树 ==========
+
+// 技能树查询请求
+message SkillTreeRequest {
+  int32 character_id = 1;           // 角色 ID
+  repeated int32 learned_skills = 2; // 已学习的技能 ID 列表
+}
+
+// 技能节点
+message SkillNode {
+  int32 skill_id = 1;                // 技能 ID
+  string name = 2;                    // 技能名称
+  string description = 3;            // 技能描述
+  float damage_multiplier = 4;       // 伤害倍率
+  int32 mana_cost = 5;               // 魔法消耗
+  int32 cooldown = 6;                // 冷却时间（毫秒）
+  repeated int32 prerequisites = 7;  // 前置技能 ID 列表
+  bool can_learn = 8;                // 当前是否可学习
+}
+
+// 技能树
+message SkillTree {
+  repeated SkillNode skills = 1;     // 所有技能节点
+  int32 character_id = 2;            // 所属角色 ID
+}
+
+// ========== AI 决策 ==========
+
+// AI 决策请求
+message AIDecisionRequest {
+  int32 npc_id = 1;              // NPC 编号
+  repeated int32 context = 2;    // 决策上下文
+                                  // [0]: 与玩家的距离
+                                  // [1]: NPC 当前血量百分比 (0-100)
+                                  // [2]: 是否处于战斗状态 (0/1)
+                                  // [3]: 玩家威胁等级 (0-10)
+}
+
+// AI 决策响应
+message ActionResponse {
+  int32 action_id = 1;           // 推荐行动编号
+                                  // 0: 待机/巡逻, 1: 攻击, 2: 防御
+                                  // 3: 使用技能, 4: 移动, 5: 逃跑, 6: 寻求帮助
+  string description = 2;        // 行动描述
+  float confidence = 3;          // 决策置信度 (0.0 - 1.0)
+}
+
+// ========== 数据校验 ==========
+
+// 校验请求
+message ValidationRequest {
+  map<string, string> fields = 1;     // 待校验的字段键值对
+  string validation_type = 2;          // 校验类型（如 "character", "item", "skill"）
+}
+
+// 校验规则
+message ValidationRules {
+  map<string, float> numeric_ranges = 1;  // 数值范围（如 {"hp": 10000}）
+  map<string, string> enum_values = 2;    // 枚举值约束（如 {"element": "fire,water,grass"}）
+}
+
+// 校验结果
+message ValidationResult {
+  bool is_valid = 1;                          // 是否通过校验
+  repeated string errors = 2;                 // 错误信息列表
+  map<string, string> normalized_fields = 3;  // 标准化后的字段
+}

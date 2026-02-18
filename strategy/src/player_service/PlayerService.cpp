@@ -5,8 +5,8 @@
  * 创建时间: 2025-07-13
  */
 #include "player_service/PlayerService.h"
+#include "security/PasswordHasher.h"
 #include <regex>
-#include <functional>
 #include <iostream>
 
 namespace strategy {
@@ -116,13 +116,11 @@ bool PlayerService::DeletePlayer(long long id) {
 }
 
 std::string PlayerService::HashPassword(const std::string& password) {
-    std::hash<std::string> hasher;
-    size_t hash_value = hasher(password + "game_salt_2025");
-    return std::to_string(hash_value);
+    return PasswordHasher::hashPassword(password);
 }
 
 bool PlayerService::VerifyPassword(const std::string& password, const std::string& hash) {
-    return HashPassword(password) == hash;
+    return PasswordHasher::verifyPassword(password, hash);
 }
 
 bool PlayerService::IsValidEmail(const std::string& email) {

@@ -1,0 +1,115 @@
+/*
+ * 文件名: StrategyService.proto
+ * 说明: 策略层 gRPC 服务定义
+ * 作者: 彭承康
+ * 创建时间: 2026-02-18
+ *
+ * 定义策略层对外提供的 RPC 接口，包括游戏规则管理、世界状态更新、
+ * 事件触发和游戏状态查询四个核心服务。
+ */
+
+syntax = "proto3";
+
+package strategy_proto;
+
+option cc_enable_arenas = true;
+
+// 策略服务
+service StrategyService {
+  // 获取游戏规则
+  rpc GetGameRules(RulesRequest) returns (GameRulesResponse);
+  // 更新世界状态
+  rpc UpdateWorldState(WorldStateUpdate) returns (StatusResponse);
+  // 触发事件
+  rpc TriggerEvent(EventTrigger) returns (EventResult);
+  // 查询当前游戏状态
+  rpc QueryGameState(QueryRequest) returns (GameStateResponse);
+}
+
+// ========== 游戏规则 ==========
+
+// 规则查询请求
+message RulesRequest {
+  string category = 1;         // 规则类别（"combat", "story", "quest"）
+  bool active_only = 2;        // 是否仅返回激活状态的规则
+}
+
+// 单条游戏规则
+message GameRule {
+  string rule_id = 1;                   // 规则 ID
+  string description = 2;               // 规则描述
+  string category = 3;                  // 规则类别
+  map<string, string> conditions = 4;   // 触发条件
+  map<string, string> effects = 5;      // 规则效果
+  int32 priority = 6;                   // 优先级
+  bool is_active = 7;                   // 是否激活
+}
+
+// 规则集合响应
+message GameRulesResponse {
+  repeated GameRule rules = 1;   // 规则列表
+  string category = 2;           // 查询的类别
+  int32 version = 3;             // 规则版本号
+}
+
+// ========== 世界状态 ==========
+
+// 世界状态更新请求
+message WorldStateUpdate {
+  string world_state_json = 1;   // 世界状态 JSON 字符串
+}
+
+// 通用状态响应
+message StatusResponse {
+  bool success = 1;              // 是否成功
+  string message = 2;            // 结果说明或错误信息
+}
+
+// ========== 事件系统 ==========
+
+// 事件触发请求
+message EventTrigger {
+  int32 event_id = 1;           // 事件编号
+  repeated int32 params = 2;    // 事件参数
+}
+
+// 事件触发结果
+message EventResult {
+  bool triggered = 1;                       // 是否成功触发
+  string result_json = 2;                   // 结果数据（JSON 格式）
+  repeated int32 affected_npcs = 3;         // 受影响的 NPC 列表
+  repeated string state_changes = 4;        // 状态变更列表
+}
+
+// ========== 游戏状态查询 ==========
+
+// 状态查询请求
+message QueryRequest {
+  string query_type = 1;        // 查询类型（"world", "npc", "player", "quest"）
+  int32 entity_id = 2;          // 实体 ID（可选，用于查询特定实体）
+}
+
+// NPC 关系数据
+message NPCRelation {
+  int32 npc_id = 1;                          // NPC ID
+  int32 target_id = 2;                       // 目标 ID
+  string relation_type = 3;                  // 关系类型（"friend", "enemy", "neutral", "ally"）
+  int32 trust_level = 4;                     // 信任度 (-100 到 100)
+  repeated string shared_history = 5;        // 共同经历
+}
+
+// 世界状态数据
+message WorldState {
+  repeated NPCRelation npc_relations = 1;           // NPC 关系列表
+  map<string, int32> global_variables = 2;           // 全局变量
+  map<string, bool> world_flags = 3;                 // 世界标志
+  repeated string active_events = 4;                 // 活跃事件列表
+  int64 last_update_time = 5;                        // 最后更新时间
+}
+
+// 游戏状态查询响应
+message GameStateResponse {
+  WorldState world_state = 1;    // 世界状态
+  string state_json = 2;         // 状态 JSON 字符串
+  bool is_valid = 3;             // 数据是否有效
+}

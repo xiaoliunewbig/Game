@@ -2,12 +2,12 @@
  * 文件名: SkillSlot.qml
  * 说明: 技能槽位组件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import QtGraphicalEffects 1.15
+// QtGraphicalEffects removed - using native styling instead
 
 /**
  * @brief 技能槽位组件
@@ -109,15 +109,9 @@ Rectangle {
         color: "#FFFFFF"
         visible: isOnCooldown && cooldownTime > 0
         
-        // 文字发光效果
-        layer.enabled: true
-        layer.effect: DropShadow {
-            horizontalOffset: 0
-            verticalOffset: 0
-            radius: 8
-            samples: 17
-            color: "#000000"
-        }
+        // 文字阴影效果（简化版）
+        style: Text.Outline
+        styleColor: "#000000"
     }
     
     // 键盘绑定提示
@@ -165,6 +159,7 @@ Rectangle {
     
     // 鼠标交互
     MouseArea {
+        id: skillMouseArea
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: isAvailable ? Qt.PointingHandCursor : Qt.ArrowCursor
@@ -218,7 +213,7 @@ Rectangle {
     ToolTip {
         id: skillToolTip
         text: getSkillTooltip()
-        visible: parent.hovered && isAvailable
+        visible: skillMouseArea.containsMouse && isAvailable
         delay: 500
         timeout: 5000
         

@@ -2,7 +2,7 @@
  * 文件名: GameState.h
  * 说明: 游戏状态管理器头文件 - 管理游戏的全局状态和数据
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  * 版本: v1.0.0
  * 
  * 功能描述:
@@ -36,6 +36,7 @@
 #include <QMap>
 #include <QMutex>
 #include <QDateTime>
+#include <QJsonObject>
 
 /**
  * @brief 游戏状态管理器
@@ -278,7 +279,20 @@ public:
      * 从文件反序列化游戏状态数据
      */
     bool loadState(const QString &filePath = QString());
-    
+
+    /**
+     * @brief 序列化为JSON对象
+     * @return QJsonObject 游戏状态的JSON表示
+     */
+    QJsonObject toJson() const;
+
+    /**
+     * @brief 从JSON对象加载状态
+     * @param json JSON对象
+     * @return bool 是否加载成功
+     */
+    bool loadFromJson(const QJsonObject &json);
+
     /**
      * @brief 重置游戏状态到初始值
      * 

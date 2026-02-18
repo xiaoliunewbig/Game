@@ -19,6 +19,7 @@
 #include <QCoreApplication>
 #include <QMutexLocker>
 #include <QTimer>
+#include <QRegularExpression>
 
 ConfigManager* ConfigManager::s_instance = nullptr;
 QMutex ConfigManager::s_mutex;
@@ -49,7 +50,6 @@ ConfigManager::ConfigManager(QObject *parent)
     
     // 创建QSettings对象
     m_settings = new QSettings(m_configFilePath, QSettings::IniFormat, this);
-    m_settings->setIniCodec("UTF-8");
     
     // 初始化默认配置
     initializeDefaults();
@@ -327,7 +327,6 @@ bool ConfigManager::loadConfig(const QString &filePath)
         m_configFilePath = filePath;
         delete m_settings;
         m_settings = new QSettings(m_configFilePath, QSettings::IniFormat, this);
-        m_settings->setIniCodec("UTF-8");
     }
     
     if (!m_settings) {
@@ -428,7 +427,7 @@ QStringList ConfigManager::getAllKeys(ConfigGroup group) const
     
     if (group != static_cast<ConfigGroup>(-1)) {
         QString prefix = getGroupPrefix(group);
-        keys = keys.filter(QRegExp("^" + QRegExp::escape(prefix)));
+        keys = keys.filter(QRegularExpression("^" + QRegularExpression::escape(prefix)));
     }
     
     return keys;

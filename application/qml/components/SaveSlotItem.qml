@@ -2,7 +2,7 @@
  * 文件名: SaveSlotItem.qml
  * 说明: 存档槽位项目组件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 import QtQuick 2.15
@@ -28,7 +28,7 @@ Rectangle {
     property int playerLevel: hasData ? 15 : 0
     property string profession: hasData ? "战士" : ""
     property int gameProgress: hasData ? 35 : 0
-    property string saveTime: hasData ? "2025-07-20 14:30" : ""
+    property string saveTime: hasData ? "2026-02-18 14:30" : ""
     
     // 信号
     signal loadRequested(int slotIndex)

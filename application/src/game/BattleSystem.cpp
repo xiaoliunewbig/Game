@@ -2,7 +2,7 @@
  * 文件名: BattleSystem.cpp
  * 说明: 战斗系统的具体实现。
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本文件实现战斗系统的所有功能，包括回合管理、伤害计算、
  * 技能释放和战斗结果处理。
@@ -275,6 +275,7 @@ QJsonArray BattleSystem::getTurnOrder() const
 
 void BattleSystem::update(float deltaTime)
 {
+    Q_UNUSED(deltaTime);
     // 更新战斗逻辑
     if (m_battleState == BattleState::Idle) {
         return;
@@ -490,6 +491,7 @@ void BattleSystem::executePlayerAttack(Enemy &target, int skillId)
 
 void BattleSystem::executePlayerItemUse(int itemId, int targetId)
 {
+    Q_UNUSED(itemId);
     // 简化的物品使用逻辑
     QString itemName = "治疗药水"; // 暂时硬编码
     

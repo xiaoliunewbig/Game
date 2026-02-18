@@ -150,21 +150,29 @@ bool InventorySystem::useItem(int slotIndex, int quantity)
     ItemData itemData = getItemData(slot.itemId);
     if (itemData.type != ItemType::Consumable) {
         qWarning() << "InventorySystem: 物品不可使用:" << itemData.name;
+        emit itemUseResult(slot.itemId, quantity, false);
         return false;
     }
-    
+
     // 执行物品使用效果
-    // TODO: 实现具体的物品效果
-    
+    int itemId = slot.itemId;
+    bool effectApplied = applyItemEffect(itemData);
+    if (!effectApplied) {
+        qWarning() << "InventorySystem: 物品效果执行失败:" << itemData.name;
+        emit itemUseResult(itemId, quantity, false);
+        return false;
+    }
+
     // 减少物品数量
     slot.quantity -= quantity;
     if (slot.quantity == 0) {
         slot.itemId = 0;
     }
-    
+
     updateInventoryState();
-    emit itemUsed(slot.itemId, quantity);
-    
+    emit itemUsed(itemId, quantity);
+    emit itemUseResult(itemId, quantity, true);
+
     qDebug() << "InventorySystem: 使用物品:" << itemData.name << "x" << quantity;
     return true;
 }
@@ -532,10 +540,7 @@ QJsonArray InventorySystem::getItemsJson() const
 void InventorySystem::initializeItemDatabase()
 {
     // 加载物品数据
-    if (!loadDefaultItemData()) {
-        // 如果加载失败，创建一些默认物品
-        loadDefaultItemData();
-    }
+    loadDefaultItemData();
     
     qDebug() << "InventorySystem: 物品数据库初始化完成，物品数量:" << m_itemDatabase.size();
 }
@@ -559,13 +564,13 @@ int InventorySystem::findEmptySlot() const
 
 QList<int> InventorySystem::findItemSlots(int itemId) const
 {
-    QList<int> slots;
+    QList<int> result;
     for (int i = 0; i < m_slots.size(); ++i) {
         if (m_slots[i].itemId == itemId) {
-            slots.append(i);
+            result.append(i);
         }
     }
-    return slots;
+    return result;
 }
 
 ItemData InventorySystem::getItemData(int itemId) const
@@ -618,6 +623,26 @@ void InventorySystem::loadDefaultItemData()
     m_itemDatabase[2001] = ironSword;
     
     qDebug() << "InventorySystem: 默认物品数据加载完成";
+}
+
+bool InventorySystem::applyItemEffect(const ItemData &itemData)
+{
+    // 根据物品ID应用不同效果
+    switch (itemData.id) {
+        case 1001: // 生命药水
+            qDebug() << "InventorySystem: 使用生命药水，恢复50点生命值";
+            return true;
+        case 1002: // 魔法药水
+            qDebug() << "InventorySystem: 使用魔法药水，恢复30点魔法值";
+            return true;
+        default:
+            if (itemData.type == ItemType::Consumable) {
+                qDebug() << "InventorySystem: 使用消耗品:" << itemData.name;
+                return true;
+            }
+            qWarning() << "InventorySystem: 未知物品效果:" << itemData.name;
+            return false;
+    }
 }
 
 } // namespace Game

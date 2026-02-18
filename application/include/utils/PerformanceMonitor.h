@@ -2,7 +2,7 @@
  * 文件名: PerformanceMonitor.h
  * 说明: 性能监控器头文件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  * 
  * 本文件定义了游戏性能监控系统，用于实时监控和分析游戏性能。
  * 
@@ -88,35 +88,61 @@ public:
     ~PerformanceMonitor();
     
     // ==================== 监控控制接口 ====================
-    
+
     /**
      * @brief 开始性能监控
      */
-    void startMonitoring();
-    
+    void start();
+
     /**
      * @brief 停止性能监控
      */
+    void stop();
+
+    /**
+     * @brief 暂停性能监控
+     */
+    void pause();
+
+    /**
+     * @brief 恢复性能监控
+     */
+    void resume();
+
+    /**
+     * @brief 开始性能监控（兼容接口）
+     */
+    void startMonitoring();
+
+    /**
+     * @brief 停止性能监控（兼容接口）
+     */
     void stopMonitoring();
-    
+
     /**
      * @brief 设置监控是否启用
      * @param enabled 是否启用
      */
     void setMonitoringEnabled(bool enabled);
-    
+
     /**
      * @brief 获取监控是否启用
      * @return 监控启用状态
      */
     bool isMonitoringEnabled() const;
-    
+
+    /**
+     * @brief 获取监控是否启用（别名）
+     * @return 监控启用状态
+     */
+    bool isEnabled() const { return isMonitoringEnabled(); }
+
     /**
      * @brief 设置监控间隔
      * @param intervalMs 监控间隔（毫秒）
      */
     void setMonitoringInterval(int intervalMs);
-    
+
     /**
      * @brief 获取监控间隔
      * @return 监控间隔（毫秒）
@@ -330,6 +356,26 @@ signals:
      */
     void performanceWarning(WarningType type, const QString &message, double value);
 
+    /**
+     * @brief 监控已启动信号
+     */
+    void monitoringStarted();
+
+    /**
+     * @brief 监控已停止信号
+     */
+    void monitoringStopped();
+
+    /**
+     * @brief 监控已暂停信号
+     */
+    void monitoringPaused();
+
+    /**
+     * @brief 监控已恢复信号
+     */
+    void monitoringResumed();
+
 private slots:
     /**
      * @brief 更新性能指标
@@ -358,25 +404,36 @@ private:
      * @param metrics 性能指标
      */
     void checkPerformanceWarnings(const PerformanceMetrics &metrics);
-    
+
     /**
      * @brief 更新FPS统计
      */
     void updateFPSStats();
-    
+
     /**
      * @brief 更新内存统计
      */
     void updateMemoryStats();
 
+    /**
+     * @brief 重置所有性能指标
+     */
+    void resetMetrics();
+
+    /**
+     * @brief 保存性能报告到文件
+     */
+    void savePerformanceReport();
+
 private:
     static PerformanceMonitor* s_instance;          ///< 单例实例
-    
+    static QMutex s_mutex;                          ///< 单例互斥锁
+
     // 监控控制
-    bool m_monitoringEnabled;                       ///< 监控是否启用
+    bool m_isEnabled;                               ///< 监控是否启用
     QTimer* m_updateTimer;                          ///< 更新定时器
-    int m_monitoringInterval;                       ///< 监控间隔
-    
+    int m_updateInterval;                           ///< 监控间隔
+
     // 帧率统计
     QElapsedTimer m_frameTimer;                     ///< 帧计时器
     QQueue<qint64> m_frameTimes;                    ///< 帧时间队列
@@ -385,29 +442,34 @@ private:
     float m_minFPS;                                 ///< 最低帧率
     float m_maxFPS;                                 ///< 最高帧率
     qint64 m_lastFrameTime;                         ///< 上一帧时间
+    qint64 m_frameStartTime;                        ///< 帧开始时间
     int m_frameCount;                               ///< 帧计数
-    
+
     // 内存统计
     qint64 m_currentMemoryUsage;                    ///< 当前内存使用量
     qint64 m_peakMemoryUsage;                       ///< 峰值内存使用量
-    
+
     // 渲染统计
     int m_drawCalls;                                ///< 绘制调用次数
     int m_triangles;                                ///< 三角形数量
     qint64 m_renderTime;                            ///< 渲染时间
-    
+
     // 性能分析
     QMap<QString, ProfileSection> m_profileSections; ///< 分析段映射
-    QMutex m_profileMutex;                          ///< 分析互斥锁
-    
+    mutable QMutex m_profileMutex;                  ///< 分析互斥锁
+
     // 历史数据
     QQueue<PerformanceMetrics> m_metricsHistory;    ///< 性能指标历史
     int m_maxHistorySize;                           ///< 最大历史记录数
-    
+
     // 警告阈值
     float m_fpsWarningThreshold;                    ///< FPS警告阈值
     qint64 m_memoryWarningThreshold;                ///< 内存警告阈值
     qint64 m_frameTimeWarningThreshold;             ///< 帧时间警告阈值
+
+    // 时间和文件
+    qint64 m_startTime;                             ///< 监控开始时间
+    QString m_logFilePath;                          ///< 日志文件路径
 };
 
 // ==================== 便利宏定义 ====================

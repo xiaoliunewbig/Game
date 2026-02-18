@@ -2,7 +2,7 @@
  * 文件名: GameApplication.cpp
  * 说明: 游戏应用程序主类的具体实现。
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本文件实现GameApplication类的所有方法，负责应用程序的完整生命周期管理，
  * 包括初始化、启动、运行和关闭流程。协调各个子系统的工作，
@@ -67,14 +67,14 @@ bool GameApplication::initialize()
         }
         
         //3. 初始化场景管理器
-        if (!m_sceneManager->initialize(m_resourceManager)) {
+        if (!m_sceneManager->initialize(m_resourceManager.get())) {
             qCritical() << "GameApplication: 场景管理器初始化失败";
             return false;
         }
         
         //4. 初始化游戏引擎
-        if (!m_gameEngine->initialize(m_sceneManager, m_resourceManager, 
-                                     m_networkManager, m_audioManager)) {
+        if (!m_gameEngine->initialize(m_sceneManager.get(), m_resourceManager.get(),
+                             m_networkManager.get(), m_audioManager.get())) {
             qCritical() << "GameApplication: 游戏引擎初始化失败";
             return false;
         }
@@ -114,7 +114,7 @@ void GameApplication::start()
     m_engine.rootContext()->setContextProperty("inventorySystem", m_gameEngine->getInventorySystem());  
     
     // 加载主QML文件
-    const QUrl url(QStringLiteral("qrc:/qml/main.qml"));
+    const QUrl url(QStringLiteral("qrc:/GameUI/qml/main.qml"));
     m_engine.load(url);
     
     // 检查QML是否加载成功

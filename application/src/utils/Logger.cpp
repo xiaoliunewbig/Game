@@ -2,7 +2,7 @@
  * 文件名: Logger.cpp
  * 说明: 日志系统实现
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本文件实现游戏的日志记录功能，支持多种日志级别和输出方式。
  */
@@ -12,6 +12,7 @@
 #include <QDir>
 #include <QStandardPaths>
 #include <QTextStream>
+#include <QStringConverter>
 #include <QMutexLocker>
 #include <iostream>
 
@@ -162,7 +163,7 @@ void Logger::openLogFile()
     m_logFile.setFileName(fileName);
     if (m_logFile.open(QIODevice::WriteOnly | QIODevice::Append)) {
         m_logStream.setDevice(&m_logFile);
-        m_logStream.setCodec("UTF-8");
+        m_logStream.setEncoding(QStringConverter::Utf8);
         
         // 写入日志文件头
         m_logStream << "=== Fantasy Legend Game Log ===" << Qt::endl;

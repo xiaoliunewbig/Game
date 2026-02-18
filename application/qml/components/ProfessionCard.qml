@@ -2,12 +2,12 @@
  * 文件名: ProfessionCard.qml
  * 说明: 职业选择卡片组件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import QtGraphicalEffects 1.15
+// QtGraphicalEffects removed - using native styling instead
 
 /**
  * @brief 职业选择卡片
@@ -58,15 +58,7 @@ Rectangle {
         }
     }
     
-    // 发光效果
-    layer.enabled: selected
-    layer.effect: DropShadow {
-        horizontalOffset: 0
-        verticalOffset: 0
-        radius: 20
-        samples: 41
-        color: "#80FFD700"
-    }
+    // 选中高亮边框（替代DropShadow发光效果）
     
     // 卡片内容
     Column {
@@ -87,19 +79,7 @@ Rectangle {
                 fillMode: Image.PreserveAspectFit
             }
             
-            // 图标发光效果
-            ColorOverlay {
-                anchors.fill: professionIcon
-                source: professionIcon
-                color: selected ? "#FFD700" : "#FFFFFF"
-                
-                Behavior on color {
-                    ColorAnimation {
-                        duration: 200
-                        easing.type: Easing.OutQuad
-                    }
-                }
-            }
+            // 图标（直接显示，无着色覆盖）
         }
         
         // 职业名称

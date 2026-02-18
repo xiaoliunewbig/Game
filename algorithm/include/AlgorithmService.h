@@ -1,103 +1,127 @@
 /*
  * 文件名: AlgorithmService.h
- * 说明: 算法服务实现类，提供伤害计算和AI决策的具体实现。
+ * 说明: 算法服务实现类，整合所有算法子模块
  * 作者: 彭承康
- * 创建时间: 2025-07-20
- *
- * 本类实现IAlgorithmService接口，整合DamageCalculator和AIDecisionEngine，
- * 为策略层提供统一的算法服务入口。作为算法层的门面模式实现，
- * 协调各个算法子模块的工作，提供高层次的算法服务接口。
+ * 创建时间: 2026-02-18
+ * 更新时间: 2025-07-24 — 集成角色属性、输入校验、冷却追踪、状态效果
  */
 #ifndef ALGORITHM_ALGORITHMSERVICE_H
 #define ALGORITHM_ALGORITHMSERVICE_H
 
 #include "../IAlgorithmService.h"
+#include "CharacterStats.h"
+#include "StatusEffect.h"
+#include "CooldownTracker.h"
+#include "InputValidator.h"
 #include "DamageCalculator.h"
 #include "AIDecisionEngine.h"
 #include <memory>
+#include <vector>
+#include <unordered_map>
 
 namespace algorithm {
 
 /**
  * @brief 算法服务实现类
- * 
- * 实现 IAlgorithmService 接口，提供具体的算法服务功能。
- * 该类作为算法层的统一入口，整合了以下核心功能：
- * - 战斗伤害计算服务
- * - AI行为决策服务
- * - 算法资源管理和生命周期控制
- * 
- * 采用组合模式，将具体的算法实现委托给专门的子模块，
- * 保持代码的模块化和可维护性。
+ *
+ * 实现 IAlgorithmService 接口，整合以下子系统：
+ * - CharacterStatsRegistry: 角色属性管理
+ * - DamageCalculator: 伤害计算（含元素/防御/暴击/状态效果）
+ * - AIDecisionEngine: AI行为决策（5种行为树）
+ * - SkillTreeManager: 技能树管理（33+技能）
+ * - InputValidator: 输入校验
+ * - CooldownTracker: 技能冷却追踪
  */
 class AlgorithmService : public IAlgorithmService {
 public:
-    /**
-     * @brief 构造函数
-     * 
-     * 初始化算法服务，创建伤害计算器和AI决策引擎实例。
-     * 使用智能指针管理子模块的生命周期，确保资源安全。
-     */
     AlgorithmService();
-    
-    /**
-     * @brief 虚析构函数
-     * 
-     * 确保派生类对象能够正确析构，释放所有相关资源。
-     * 使用默认析构函数，智能指针会自动清理子模块。
-     */
     virtual ~AlgorithmService() = default;
 
-    /**
-     * @brief 计算伤害
-     * 
-     * 实现IAlgorithmService接口的伤害计算功能。
-     * 将请求委托给DamageCalculator进行具体计算。
-     * 
-     * @param request 伤害计算请求，包含攻击者、防御者和技能信息
-     * @return DamageResult 伤害计算结果，包含伤害数值和效果描述
-     * 
-     * @note 该方法线程安全，可以在多线程环境中调用
-     * @see DamageCalculator::CalculateDamage()
-     */
-    DamageResult CalculateDamage(const DamageRequest& request) override;
+    // ============ IAlgorithmService 接口实现 ============
 
-    /**
-     * @brief AI决策
-     * 
-     * 实现IAlgorithmService接口的AI决策功能。
-     * 将请求委托给AIDecisionEngine进行智能决策。
-     * 
-     * @param request AI决策请求，包含NPC信息和上下文环境
-     * @return AIDecisionResult AI决策结果，包含推荐行动和描述
-     * 
-     * @note 决策基于行为树算法，支持复杂的条件判断和行为选择
-     * @see AIDecisionEngine::MakeDecision()
-     */
+    DamageResult CalculateDamage(const DamageRequest& request) override;
     AIDecisionResult MakeAIDecision(const AIDecisionRequest& request) override;
 
+    // ============ 扩展接口 ============
+
+    /**
+     * @brief 扩展伤害计算
+     */
+    ExtendedDamageResult CalculateExtendedDamage(const ExtendedDamageRequest& request);
+
+    /**
+     * @brief 注册角色属性
+     */
+    void RegisterCharacter(const CharacterStats& stats);
+
+    /**
+     * @brief 查询角色属性
+     */
+    const CharacterStats* GetCharacterStats(int character_id) const;
+
+    /**
+     * @brief 获取职业默认属性
+     */
+    CharacterStats GetDefaultStats(Profession profession, int level = 1) const;
+
+    /**
+     * @brief 注册NPC类型
+     */
+    void RegisterNPCType(int npc_id, NPCType type);
+
+    /**
+     * @brief 获取技能信息
+     */
+    const SkillNode* GetSkillInfo(int skill_id) const;
+
+    /**
+     * @brief 获取职业技能列表
+     */
+    std::vector<const SkillNode*> GetSkillsByProfession(Profession profession) const;
+
+    /**
+     * @brief 检查技能冷却
+     */
+    bool IsSkillReady(int character_id, int skill_id) const;
+
+    /**
+     * @brief 启动技能冷却
+     */
+    void StartSkillCooldown(int character_id, int skill_id, int cooldown_ms);
+
+    /**
+     * @brief 更新冷却计时
+     */
+    void TickCooldowns(int delta_ms);
+
+    /**
+     * @brief 管理角色状态效果
+     */
+    void AddStatusEffect(int character_id, const StatusEffect& effect);
+    std::vector<StatusEffect> GetStatusEffects(int character_id) const;
+    void TickStatusEffects(int character_id);
+    void ClearStatusEffects(int character_id);
+
+    /**
+     * @brief 校验技能学习请求
+     */
+    ValidationResult ValidateSkillLearn(int skill_id, Profession profession,
+                                        const std::vector<int>& learned_skills) const;
+
+    /**
+     * @brief 获取元素克制倍率
+     */
+    float GetElementMultiplier(Element attacker, Element defender) const;
+
 private:
-    /**
-     * @brief 伤害计算器实例
-     * 
-     * 负责处理所有战斗相关的伤害计算，包括：
-     * - 基础伤害计算
-     * - 技能倍率应用
-     * - 元素克制计算
-     * - 暴击和随机因子处理
-     */
     std::unique_ptr<DamageCalculator> damage_calculator_;
-    
-    /**
-     * @brief AI决策引擎实例
-     * 
-     * 负责处理所有NPC的智能决策，包括：
-     * - 行为树评估
-     * - 条件判断处理
-     * - 最优行动选择
-     * - 决策结果生成
-     */
     std::unique_ptr<AIDecisionEngine> ai_engine_;
+    std::unique_ptr<CharacterStatsRegistry> stats_registry_;
+    std::unique_ptr<InputValidator> validator_;
+    CooldownTracker cooldown_tracker_;
+
+    // 角色状态效果: character_id → 状态列表
+    std::unordered_map<int, std::vector<StatusEffect>> status_effects_;
 };
 
 } // namespace algorithm

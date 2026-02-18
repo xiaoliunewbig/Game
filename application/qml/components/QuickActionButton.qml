@@ -2,12 +2,12 @@
  * 文件名: QuickActionButton.qml
  * 说明: 快捷操作按钮组件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import QtGraphicalEffects 1.15
+// QtGraphicalEffects removed - using native styling instead
 
 /**
  * @brief 快捷操作按钮
@@ -33,7 +33,7 @@ Button {
         id: buttonBackground
         color: quickActionButton.pressed ? pressedColor : 
                (quickActionButton.hovered ? hoverColor : normalColor)
-        border.color: "#666666"
+        border.color: quickActionButton.hovered ? "#AAAAAA" : "#666666"
         border.width: 1
         radius: 6
         
@@ -45,15 +45,6 @@ Button {
             }
         }
         
-        // 悬停时的发光效果
-        layer.enabled: quickActionButton.hovered
-        layer.effect: DropShadow {
-            horizontalOffset: 0
-            verticalOffset: 0
-            radius: 10
-            samples: 21
-            color: "#40FFFFFF"
-        }
     }
     
     // 按钮内容
@@ -72,13 +63,7 @@ Button {
             visible: iconSource !== ""
             anchors.verticalCenter: parent.verticalCenter
             
-            // 图标着色
-            ColorOverlay {
-                anchors.fill: buttonIcon
-                source: buttonIcon
-                color: "#FFFFFF"
-                visible: buttonIcon.visible
-            }
+            // 图标（直接显示，无着色覆盖）
         }
         
         // 文字

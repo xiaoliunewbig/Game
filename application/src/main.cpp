@@ -2,7 +2,7 @@
  * 文件名: main.cpp
  * 说明: 应用程序入口点
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  * 版本: v1.0.0
  */
 
@@ -14,6 +14,7 @@
 #include <QPalette>
 #include <QColor>
 #include "GameApplication.h"
+#include <QFontDatabase>
 #include "utils/Logger.h"
 
 /**
@@ -61,10 +62,15 @@ void initializeLogging()
     // 创建日志目录
     QString logDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/logs";
     QDir().mkpath(logDir);
-    
+
     // 初始化日志系统
-    // Logger::instance()->initialize(logDir + "/game.log");
-    
+    Logger* logger = Logger::instance();
+    if (logger) {
+        logger->setLogLevel(LogLevel::Debug);
+        logger->setFileOutput(true);
+        logger->setConsoleOutput(true);
+    }
+
     qDebug() << "日志系统初始化完成，日志目录:" << logDir;
 }
 
@@ -82,7 +88,11 @@ void loadCustomFonts()
             if (!fontFamilies.isEmpty()) {
                 qDebug() << "成功加载自定义字体:" << fontFamilies.first();
             }
+        } else {
+            qDebug() << "自定义字体加载失败，使用系统默认字体:" << fontPath;
         }
+    } else {
+        qDebug() << "自定义字体文件不存在，使用系统默认字体:" << fontPath;
     }
 }
 

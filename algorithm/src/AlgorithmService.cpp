@@ -1,69 +1,178 @@
 /*
  * 文件名: AlgorithmService.cpp
- * 说明: 算法服务实现类的具体实现。
+ * 说明: 算法服务实现 — 整合所有子模块
  * 作者: 彭承康
- * 创建时间: 2025-07-20
- *
- * 本文件实现AlgorithmService类的所有方法，作为算法层的统一入口，
- * 协调各个子模块完成伤害计算和AI决策功能。提供高效、稳定的
- * 算法服务，支持策略层的各种计算需求。
+ * 创建时间: 2026-02-18
+ * 更新时间: 2025-07-24 — 集成角色属性、输入校验、冷却追踪、状态效果
  */
 #include "AlgorithmService.h"
-#include "DamageCalculator.h"
 #include "SkillTreeManager.h"
-#include "AIDecisionEngine.h"
 
 namespace algorithm {
 
-/**
- * @brief 构造函数实现
- * 
- * 初始化算法服务的各个子模块，建立完整的算法服务体系。
- * 使用make_unique创建子模块实例，确保异常安全和资源管理。
- */
-AlgorithmService::AlgorithmService() 
+AlgorithmService::AlgorithmService()
     : damage_calculator_(std::make_unique<DamageCalculator>())
-    , ai_engine_(std::make_unique<AIDecisionEngine>()) {
-    // 伤害计算器和AI引擎已通过初始化列表创建
-    // 所有子模块都已准备就绪，可以提供服务
+    , ai_engine_(std::make_unique<AIDecisionEngine>())
+    , stats_registry_(std::make_unique<CharacterStatsRegistry>())
+    , validator_(std::make_unique<InputValidator>()) {
+    // 将属性注册表注入伤害计算器
+    damage_calculator_->setStatsRegistry(stats_registry_.get());
 }
 
-/**
- * @brief 伤害计算服务实现
- * 
- * 将伤害计算请求委托给专门的伤害计算器处理。
- * 该方法作为算法服务的门面，隐藏了具体的计算实现细节。
- * 
- * @param request 伤害计算请求参数
- * @return DamageResult 计算结果，包含伤害值和效果描述
- */
+// ============================================================================
+// IAlgorithmService 接口实现
+// ============================================================================
+
 DamageResult AlgorithmService::CalculateDamage(const DamageRequest& request) {
-    // 委托给伤害计算器进行具体计算
-    // 伤害计算器会处理所有复杂的计算逻辑，包括：
-    // - 基础属性计算
-    // - 技能效果应用
-    // - 元素克制处理
-    // - 暴击和随机因子
+    // 输入校验
+    auto validation = validator_->validateDamageRequest(
+        request, *stats_registry_, *damage_calculator_->getSkillManager());
+    if (!validation.success) {
+        return {0, "校验失败: " + validation.error_message};
+    }
+
+    // 获取角色状态效果
+    auto atk_effects = GetStatusEffects(request.attacker_id);
+    auto def_effects = GetStatusEffects(request.defender_id);
+
+    // 构造扩展请求
+    const CharacterStats* atk = stats_registry_->getCharacterStats(request.attacker_id);
+    const CharacterStats* def = stats_registry_->getCharacterStats(request.defender_id);
+
+    if (atk && def) {
+        ExtendedDamageRequest ext;
+        ext.attacker = *atk;
+        ext.defender = *def;
+        ext.skill_id = request.skill_id;
+        ext.skill_level = 1;
+        ext.attacker_effects = atk_effects;
+        ext.defender_effects = def_effects;
+
+        auto ext_result = damage_calculator_->CalculateExtendedDamage(ext);
+
+        // 自动启动技能冷却
+        const SkillNode* skill = damage_calculator_->getSkillManager()->GetSkill(request.skill_id);
+        if (skill && skill->cooldown_ms > 0) {
+            cooldown_tracker_.startCooldown(request.attacker_id, request.skill_id, skill->cooldown_ms);
+        }
+
+        // 自动附加状态效果
+        for (const auto& eff : ext_result.applied_effects) {
+            AddStatusEffect(request.defender_id, eff);
+        }
+
+        return {ext_result.damage, ext_result.effect};
+    }
+
+    // 兜底
     return damage_calculator_->CalculateDamage(request);
 }
 
-/**
- * @brief AI决策服务实现
- * 
- * 将AI决策请求委托给专门的AI决策引擎处理。
- * 该方法提供统一的AI决策接口，支持复杂的行为决策。
- * 
- * @param request AI决策请求参数
- * @return AIDecisionResult 决策结果，包含推荐行动和描述
- */
 AIDecisionResult AlgorithmService::MakeAIDecision(const AIDecisionRequest& request) {
-    // 委托给AI决策引擎进行智能决策
-    // AI引擎会基于行为树算法进行决策，包括：
-    // - 环境状态分析
-    // - 条件判断处理
-    // - 行为优先级评估
-    // - 最优行动选择
+    // 输入校验
+    auto validation = validator_->validateAIDecisionRequest(request);
+    if (!validation.success) {
+        return {0, "校验失败: " + validation.error_message};
+    }
+
     return ai_engine_->MakeDecision(request);
+}
+
+// ============================================================================
+// 扩展接口
+// ============================================================================
+
+ExtendedDamageResult AlgorithmService::CalculateExtendedDamage(const ExtendedDamageRequest& request) {
+    return damage_calculator_->CalculateExtendedDamage(request);
+}
+
+void AlgorithmService::RegisterCharacter(const CharacterStats& stats) {
+    auto validation = validator_->validateCharacterStats(stats);
+    if (validation.success) {
+        stats_registry_->registerCharacter(stats);
+    }
+}
+
+const CharacterStats* AlgorithmService::GetCharacterStats(int character_id) const {
+    return stats_registry_->getCharacterStats(character_id);
+}
+
+CharacterStats AlgorithmService::GetDefaultStats(Profession profession, int level) const {
+    return stats_registry_->getDefaultStats(profession, level);
+}
+
+void AlgorithmService::RegisterNPCType(int npc_id, NPCType type) {
+    ai_engine_->RegisterNPCType(npc_id, type);
+}
+
+const SkillNode* AlgorithmService::GetSkillInfo(int skill_id) const {
+    return damage_calculator_->getSkillManager()->GetSkill(skill_id);
+}
+
+std::vector<const SkillNode*> AlgorithmService::GetSkillsByProfession(Profession profession) const {
+    return damage_calculator_->getSkillManager()->GetSkillsByProfession(profession);
+}
+
+bool AlgorithmService::IsSkillReady(int character_id, int skill_id) const {
+    return cooldown_tracker_.isReady(character_id, skill_id);
+}
+
+void AlgorithmService::StartSkillCooldown(int character_id, int skill_id, int cooldown_ms) {
+    cooldown_tracker_.startCooldown(character_id, skill_id, cooldown_ms);
+}
+
+void AlgorithmService::TickCooldowns(int delta_ms) {
+    cooldown_tracker_.tick(delta_ms);
+}
+
+// ============================================================================
+// 状态效果管理
+// ============================================================================
+
+void AlgorithmService::AddStatusEffect(int character_id, const StatusEffect& effect) {
+    status_effects_[character_id].push_back(effect);
+}
+
+std::vector<StatusEffect> AlgorithmService::GetStatusEffects(int character_id) const {
+    auto it = status_effects_.find(character_id);
+    if (it != status_effects_.end()) {
+        return it->second;
+    }
+    return {};
+}
+
+void AlgorithmService::TickStatusEffects(int character_id) {
+    auto it = status_effects_.find(character_id);
+    if (it == status_effects_.end()) return;
+
+    auto& effects = it->second;
+    // 移除过期效果
+    effects.erase(
+        std::remove_if(effects.begin(), effects.end(),
+            [](StatusEffect& e) { return !e.tick(); }),
+        effects.end());
+
+    if (effects.empty()) {
+        status_effects_.erase(it);
+    }
+}
+
+void AlgorithmService::ClearStatusEffects(int character_id) {
+    status_effects_.erase(character_id);
+}
+
+// ============================================================================
+// 校验和查询
+// ============================================================================
+
+ValidationResult AlgorithmService::ValidateSkillLearn(int skill_id, Profession profession,
+                                                       const std::vector<int>& learned_skills) const {
+    return validator_->validateSkillLearnRequest(
+        skill_id, profession, learned_skills, *damage_calculator_->getSkillManager());
+}
+
+float AlgorithmService::GetElementMultiplier(Element attacker, Element defender) const {
+    return stats_registry_->getElementMultiplier(attacker, defender);
 }
 
 } // namespace algorithm

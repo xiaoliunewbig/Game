@@ -2,7 +2,7 @@
  * 文件名: DatabaseConfigManager.cpp
  * 说明: 数据库配置管理器实现
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 #include "database/DatabaseConfigManager.h"
 #include "database/JsonConfigParser.h"
@@ -54,14 +54,10 @@ bool DatabaseConfigManager::LoadFromJson(const std::string& json_content) {
         // 这里简化处理，实际应该用JSON库
         configs_.clear();
         
-        // 创建一个默认的PostgreSQL配置作为示例
+        // 创建一个默认的SQLite配置
         auto default_config = std::make_shared<DatabaseConfig>();
-        default_config->type = DatabaseType::POSTGRESQL;
-        default_config->host = "localhost";
-        default_config->port = 5432;
-        default_config->database = "game_db";
-        default_config->username = "game_user";
-        default_config->password = "game_password";
+        default_config->type = DatabaseType::SQLITE;
+        default_config->database = "game_data.db";
         default_config->max_connections = 10;
         
         configs_["primary"] = default_config;

@@ -2,7 +2,7 @@
  * 文件名: MainMenu.qml
  * 说明: 游戏主菜单界面组件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本组件实现游戏的主菜单界面，包括新游戏、加载游戏、
  * 设置和退出等功能。
@@ -10,7 +10,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import QtQuick.Effects
+// QtQuick.Effects removed - using native styling instead
 
 /**
  * @brief 主菜单组件
@@ -71,16 +71,9 @@ Rectangle {
             color: "#ffffff"
             Layout.alignment: Qt.AlignHCenter
             
-            // 标题发光效果
-            layer.enabled: true
-            layer.effect: DropShadow {
-                horizontalOffset: 0
-                verticalOffset: 0
-                radius: 20
-                samples: 41
-                color: "#4a90e2"
-                spread: 0.3
-            }
+            // 文字阴影效果（简化版）
+            style: Text.Outline
+            styleColor: "#4a90e2"
             
             // 标题动画
             NumberAnimation on scale {

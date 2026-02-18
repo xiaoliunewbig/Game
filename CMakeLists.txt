@@ -4,7 +4,7 @@
 # 文件名: CMakeLists.txt
 # 说明: 项目根目录的主CMake配置文件，定义整个项目的构建规则
 # 作者: 彭承康
-# 创建时间: 2025-07-20
+# 创建时间: 2026-02-18
 # 版本: v1.0.0
 #
 # 功能描述:
@@ -80,9 +80,16 @@ if(MSVC)
         /permissive-                 # 禁用非标准扩展
     )
     # Debug模式特定选项
-    add_compile_options($<$<CONFIG:Debug>:/Od /Zi /RTC1>)
+    add_compile_options(
+        "$<$<CONFIG:Debug>:/Od>"
+        "$<$<CONFIG:Debug>:/Zi>"
+        "$<$<CONFIG:Debug>:/RTC1>"
+    )
     # Release模式特定选项
-    add_compile_options($<$<CONFIG:Release>:/O2 /DNDEBUG>)
+    add_compile_options(
+        "$<$<CONFIG:Release>:/O2>"
+        "$<$<CONFIG:Release>:/DNDEBUG>"
+    )
 else()
     # GCC/Clang 编译器选项
     add_compile_options(
@@ -93,9 +100,16 @@ else()
         -fPIC                        # 生成位置无关代码
     )
     # Debug模式特定选项
-    add_compile_options($<$<CONFIG:Debug>:-g -O0 -DDEBUG>)
+    add_compile_options(
+        "$<$<CONFIG:Debug>:-g>"
+        "$<$<CONFIG:Debug>:-O0>"
+        "$<$<CONFIG:Debug>:-D_DEBUG_MODE>"
+    )
     # Release模式特定选项
-    add_compile_options($<$<CONFIG:Release>:-O3 -DNDEBUG>)
+    add_compile_options(
+        "$<$<CONFIG:Release>:-O3>"
+        "$<$<CONFIG:Release>:-DNDEBUG>"
+    )
 endif()
 
 # ----------------------------------------------------------------------------
@@ -105,26 +119,88 @@ endif()
 # 查找必需的依赖包
 message(STATUS "查找项目依赖...")
 
-# Qt6 - 用于应用层UI
-find_package(Qt6 REQUIRED COMPONENTS 
+# ---------- 自动查找 Qt6 ----------
+if(WIN32 AND NOT Qt6_DIR)
+    set(QT6_POSSIBLE_PATHS
+        "C:/Qt/6.8.0/msvc2022_64"
+        "C:/Qt/6.7.0/msvc2022_64"
+        "C:/Qt/6.6.0/msvc2022_64"
+        "C:/Qt/6.5.3/msvc2019_64"
+        "C:/Qt/6.5.0/msvc2022_64"
+    )
+    foreach(QT_PATH ${QT6_POSSIBLE_PATHS})
+        if(EXISTS "${QT_PATH}/lib/cmake/Qt6")
+            list(PREPEND CMAKE_PREFIX_PATH "${QT_PATH}")
+            message(STATUS "自动检测到 Qt6: ${QT_PATH}")
+            break()
+        endif()
+    endforeach()
+endif()
+
+# Qt6 - 用于应用层UI（可选，不影响算法/策略层和测试）
+find_package(Qt6 QUIET COMPONENTS
     Core                            # Qt核心模块
     Quick                           # Qt Quick (QML)
     Widgets                         # Qt Widgets
     Multimedia                      # 多媒体支持
     Network                         # 网络支持
 )
+if(Qt6_FOUND)
+    message(STATUS "Qt6版本: ${Qt6_VERSION}")
+else()
+    message(WARNING "未找到 Qt6 — game_client 将不会构建")
+endif()
 
-# gRPC - 用于服务间通信
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(GRPC REQUIRED grpc++)
-pkg_check_modules(PROTOBUF REQUIRED protobuf)
+# gRPC 和 Protobuf - 支持 vcpkg (find_package) 和系统安装 (pkg-config)
+find_package(Protobuf CONFIG QUIET)
+find_package(gRPC CONFIG QUIET)
+if(NOT gRPC_FOUND OR NOT Protobuf_FOUND)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        if(NOT gRPC_FOUND)
+            pkg_check_modules(GRPC QUIET grpc++)
+        endif()
+        if(NOT Protobuf_FOUND)
+            pkg_check_modules(PROTOBUF QUIET protobuf)
+        endif()
+    endif()
+endif()
+
+set(HAS_GRPC OFF)
+if(gRPC_FOUND OR GRPC_FOUND)
+    set(HAS_GRPC ON)
+endif()
+if(NOT HAS_GRPC)
+    message(WARNING "未找到 gRPC/Protobuf — gRPC服务将不会构建")
+endif()
 
 # 线程支持
 find_package(Threads REQUIRED)
 
+# ---------- 自动查找 SQLite3 ----------
+if(WIN32 AND NOT SQLite3_FOUND)
+    # 尝试从 Miniconda/Anaconda 路径查找 SQLite3
+    set(SQLITE3_POSSIBLE_PREFIXES
+        "$ENV{CONDA_PREFIX}/Library"
+        "D:/pip/miniconda/Library"
+        "C:/Miniconda3/Library"
+        "C:/Anaconda3/Library"
+    )
+    foreach(SQLITE_PREFIX ${SQLITE3_POSSIBLE_PREFIXES})
+        if(EXISTS "${SQLITE_PREFIX}/include/sqlite3.h" AND EXISTS "${SQLITE_PREFIX}/lib/sqlite3.lib")
+            list(PREPEND CMAKE_PREFIX_PATH "${SQLITE_PREFIX}")
+            message(STATUS "自动检测到 SQLite3: ${SQLITE_PREFIX}")
+            break()
+        endif()
+    endforeach()
+endif()
+
 # 输出依赖信息
-message(STATUS "Qt6版本: ${Qt6_VERSION}")
-message(STATUS "gRPC版本: ${GRPC_VERSION}")
+if(gRPC_FOUND)
+    message(STATUS "gRPC: 通过 find_package 找到")
+elseif(GRPC_FOUND)
+    message(STATUS "gRPC版本: ${GRPC_VERSION} (pkg-config)")
+endif()
 
 # ----------------------------------------------------------------------------
 # 全局包含目录和链接目录
@@ -159,20 +235,29 @@ message(STATUS "测试框架已启用")
 
 message(STATUS "配置子项目...")
 
+# 添加 Proto 生成库（必须在其他子项目之前，需要gRPC）
+if(HAS_GRPC)
+    add_subdirectory(proto)
+    message(STATUS "  ✓ Proto 生成库 (proto)")
+endif()
+
 # 添加算法层服务
 # 提供战斗计算、AI决策等核心算法
 add_subdirectory(algorithm)
 message(STATUS "  ✓ 算法层服务 (algorithm)")
 
-# 添加策略层服务  
+# 添加策略层服务
 # 提供游戏规则、世界状态管理
 add_subdirectory(strategy)
 message(STATUS "  ✓ 策略层服务 (strategy)")
 
-# 添加Qt应用层
-# 游戏客户端和用户界面
-add_subdirectory(application)
-message(STATUS "  ✓ Qt应用层 (application)")
+# 添加Qt应用层（需要Qt6）
+if(Qt6_FOUND)
+    add_subdirectory(application)
+    message(STATUS "  ✓ Qt应用层 (application)")
+else()
+    message(STATUS "  ✗ Qt应用层 (application) — 跳过 (缺少Qt6)")
+endif()
 
 # 添加测试套件
 # 集成测试和单元测试
@@ -185,11 +270,15 @@ message(STATUS "  ✓ 测试套件 (tests)")
 
 # 创建一键构建目标
 # 按正确顺序构建所有核心组件
+set(BUILD_ALL_DEPS algorithm_service strategy_service)
+if(HAS_GRPC)
+    list(APPEND BUILD_ALL_DEPS algorithm_server strategy_server)
+endif()
+if(Qt6_FOUND)
+    list(APPEND BUILD_ALL_DEPS game_client)
+endif()
 add_custom_target(build_all
-    DEPENDS 
-        algorithm_service           # 算法层服务
-        strategy_service           # 策略层服务  
-        game_client               # Qt游戏客户端
+    DEPENDS ${BUILD_ALL_DEPS}
     COMMENT "构建所有服务和应用程序"
 )
 
@@ -222,12 +311,13 @@ endif()
 message(STATUS "安装路径: ${CMAKE_INSTALL_PREFIX}")
 
 # 安装可执行文件
-install(TARGETS 
-    algorithm_service 
-    strategy_service 
-    game_client
+set(INSTALL_TARGETS algorithm_service strategy_service)
+if(Qt6_FOUND)
+    list(APPEND INSTALL_TARGETS game_client)
+endif()
+install(TARGETS ${INSTALL_TARGETS}
     RUNTIME DESTINATION bin         # Windows: .exe文件
-    LIBRARY DESTINATION lib         # Linux: .so文件  
+    LIBRARY DESTINATION lib         # Linux: .so文件
     ARCHIVE DESTINATION lib         # 静态库文件
 )
 

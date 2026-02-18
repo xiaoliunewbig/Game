@@ -2,7 +2,7 @@
  * 文件名: PlayerRepositoryDatabase.cpp
  * 说明: 基于通用数据库接口的玩家仓储实现
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 #include "player_service/PlayerRepositoryDatabase.h"
 #include <iostream>
@@ -17,13 +17,14 @@ PlayerRepositoryDatabase::PlayerRepositoryDatabase(std::unique_ptr<IDatabaseConn
 
 std::optional<Player> PlayerRepositoryDatabase::CreatePlayer(const std::string& username, const std::string& password_hash, const std::string& email) {
     try {
-        std::string sql = "INSERT INTO players (username, password_hash, email, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id, username, password_hash, email, created_at;";
-        
+        std::string sql = "INSERT INTO players (username, password_hash, email, created_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP);";
+
         std::vector<std::any> params = {username, password_hash, email};
-        auto result = ExecuteQuery(sql, params);
-        
-        if (!result.empty()) {
-            return ConvertToPlayer(result[0]);
+        ExecuteUpdate(sql, params);
+
+        long long new_id = GetLastInsertId();
+        if (new_id > 0) {
+            return FindPlayerById(new_id);
         }
     } catch (const std::exception& e) {
         std::cerr << "创建玩家失败: " << e.what() << std::endl;

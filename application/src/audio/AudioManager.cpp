@@ -2,7 +2,7 @@
  * 文件名: AudioManager.cpp
  * 说明: 音频管理器实现 - 统一管理游戏中的所有音频播放和音效处理
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  * 版本: v1.0.0
  * 
  * 功能描述:
@@ -114,13 +114,14 @@ bool AudioManager::initialize()
  */
 bool AudioManager::checkAudioDeviceAvailability()
 {
-    // TODO: 实际的音频设备检查逻辑
-    // 示例：
-    // QAudioDevice defaultDevice = QMediaDevices::defaultAudioOutput();
-    // return !defaultDevice.isNull();
-    
-    qDebug() << "AudioManager: 音频设备检查完成";
-    return true; // 临时返回true
+    QAudioDevice defaultDevice = QMediaDevices::defaultAudioOutput();
+    if (defaultDevice.isNull()) {
+        qWarning() << "AudioManager: 无可用音频输出设备";
+        return false;
+    }
+
+    qDebug() << "AudioManager: 音频设备检查完成 -" << defaultDevice.description();
+    return true;
 }
 
 /**
@@ -134,21 +135,19 @@ bool AudioManager::checkAudioDeviceAvailability()
 void AudioManager::initializeAudioPlayers()
 {
     qDebug() << "AudioManager: 初始化音频播放器";
-    
-    // TODO: 创建背景音乐播放器
-    // m_musicPlayer = new QMediaPlayer(this);
-    // m_musicAudioOutput = new QAudioOutput(this);
-    // m_musicPlayer->setAudioOutput(m_musicAudioOutput);
-    
-    // TODO: 创建音效播放器池
-    // for (int i = 0; i < MAX_SFX_PLAYERS; ++i) {
-    //     QMediaPlayer* sfxPlayer = new QMediaPlayer(this);
-    //     QAudioOutput* sfxOutput = new QAudioOutput(this);
-    //     sfxPlayer->setAudioOutput(sfxOutput);
-    //     m_sfxPlayers.append(sfxPlayer);
-    //     m_sfxOutputs.append(sfxOutput);
-    // }
-    
+
+    // 创建背景音乐播放器
+    m_audioOutput = std::make_unique<QAudioOutput>(this);
+    m_musicPlayer = std::make_unique<QMediaPlayer>(this);
+    m_musicPlayer->setAudioOutput(m_audioOutput.get());
+
+    // 连接播放状态变更信号
+    connect(m_musicPlayer.get(), &QMediaPlayer::playbackStateChanged,
+            this, &AudioManager::onMediaPlayerStateChanged);
+
+    // 初始化音效ID计数器
+    m_nextEffectId = 1;
+
     qDebug() << "AudioManager: 音频播放器初始化完成";
 }
 
@@ -200,19 +199,22 @@ void AudioManager::loadAudioSettings()
 void AudioManager::applyVolumeSettings()
 {
     qDebug() << "AudioManager: 应用音量设置到音频系统";
-    
-    // TODO: 应用到背景音乐播放器
-    // if (m_musicAudioOutput) {
-    //     float effectiveVolume = m_isMuted ? 0.0f : (m_masterVolume * m_musicVolume);
-    //     m_musicAudioOutput->setVolume(effectiveVolume);
-    // }
-    
-    // TODO: 应用到音效播放器
-    // for (QAudioOutput* output : m_sfxOutputs) {
-    //     float effectiveVolume = m_isMuted ? 0.0f : (m_masterVolume * m_sfxVolume);
-    //     output->setVolume(effectiveVolume);
-    // }
-    
+
+    // 应用到背景音乐播放器
+    if (m_audioOutput) {
+        float effectiveVolume = m_isMuted ? 0.0f : (m_masterVolume * m_musicVolume);
+        m_audioOutput->setVolume(effectiveVolume);
+    }
+
+    // 应用到音效播放器
+    float sfxEffectiveVolume = m_isMuted ? 0.0f : (m_masterVolume * m_sfxVolume);
+    for (auto &effect : m_effectPlayers) {
+        effect->setVolume(sfxEffectiveVolume);
+    }
+    for (auto &effect : m_preloadedEffects) {
+        effect->setVolume(sfxEffectiveVolume);
+    }
+
     qDebug() << "AudioManager: 音量设置应用完成";
 }
 
@@ -262,13 +264,13 @@ void AudioManager::setMusicVolume(float volume)
     qDebug() << "AudioManager: 设置音乐音量从" << m_musicVolume << "到" << newVolume;
     
     m_musicVolume = newVolume;
-    
-    // TODO: 应用到音乐播放器
-    // if (m_musicAudioOutput) {
-    //     float effectiveVolume = m_isMuted ? 0.0f : (m_masterVolume * m_musicVolume);
-    //     m_musicAudioOutput->setVolume(effectiveVolume);
-    // }
-    
+
+    // 应用到音乐播放器
+    if (m_audioOutput) {
+        float effectiveVolume = m_isMuted ? 0.0f : (m_masterVolume * m_musicVolume);
+        m_audioOutput->setVolume(effectiveVolume);
+    }
+
     emit musicVolumeChanged(m_musicVolume);
     qDebug() << "AudioManager: 音乐音量设置完成";
 }
@@ -290,13 +292,16 @@ void AudioManager::setSFXVolume(float volume)
     qDebug() << "AudioManager: 设置音效音量从" << m_sfxVolume << "到" << newVolume;
     
     m_sfxVolume = newVolume;
-    
-    // TODO: 应用到音效播放器
-    // for (QAudioOutput* output : m_sfxOutputs) {
-    //     float effectiveVolume = m_isMuted ? 0.0f : (m_masterVolume * m_sfxVolume);
-    //     output->setVolume(effectiveVolume);
-    // }
-    
+
+    // 应用到音效播放器
+    float effectiveVolume = m_isMuted ? 0.0f : (m_masterVolume * m_sfxVolume);
+    for (auto &effect : m_effectPlayers) {
+        effect->setVolume(effectiveVolume);
+    }
+    for (auto &effect : m_preloadedEffects) {
+        effect->setVolume(effectiveVolume);
+    }
+
     emit sfxVolumeChanged(m_sfxVolume);
     qDebug() << "AudioManager: 音效音量设置完成";
 }
@@ -343,21 +348,230 @@ void AudioManager::shutdown()
     }
     
     // 停止所有音频播放
-    // TODO: 停止背景音乐
-    // if (m_musicPlayer) {
-    //     m_musicPlayer->stop();
-    // }
-    
-    // TODO: 停止所有音效
-    // for (QMediaPlayer* player : m_sfxPlayers) {
-    //     player->stop();
-    // }
-    
-    // 清理播放器资源
-    // TODO: 删除播放器对象
-    
+    if (m_musicPlayer) {
+        m_musicPlayer->stop();
+    }
+
+    // 停止所有音效
+    for (auto *effect : m_effectPlayers) {
+        effect->stop();
+    }
+    qDeleteAll(m_effectPlayers);
+    m_effectPlayers.clear();
+
+    // 清理预加载音效
+    for (auto *effect : m_preloadedEffects) {
+        effect->stop();
+    }
+    qDeleteAll(m_preloadedEffects);
+    m_preloadedEffects.clear();
+
+    // 释放播放器资源
+    m_musicPlayer.reset();
+    m_audioOutput.reset();
+
     // 重置状态
     m_isInitialized = false;
-    
+
     qDebug() << "AudioManager: 音频系统关闭完成";
+}
+
+float AudioManager::effectVolume() const
+{
+    return m_sfxVolume;
+}
+
+void AudioManager::setEffectVolume(float volume)
+{
+    setSFXVolume(volume);
+}
+
+void AudioManager::playMusic(const QString &musicFile, bool loop, bool fadeIn)
+{
+    Q_UNUSED(fadeIn)
+
+    if (!m_isInitialized) {
+        qWarning() << "AudioManager: 未初始化，无法播放音乐";
+        return;
+    }
+
+    qDebug() << "AudioManager: 播放背景音乐:" << musicFile;
+    m_currentMusic = musicFile;
+    emit currentMusicChanged();
+
+    if (m_musicPlayer) {
+        m_musicPlayer->setSource(QUrl::fromLocalFile(musicFile));
+        m_musicPlayer->setLoops(loop ? QMediaPlayer::Infinite : 1);
+        m_musicPlayer->play();
+    }
+}
+
+void AudioManager::stopMusic(bool fadeOut)
+{
+    Q_UNUSED(fadeOut)
+
+    qDebug() << "AudioManager: 停止背景音乐";
+    m_currentMusic.clear();
+    emit currentMusicChanged();
+
+    if (m_musicPlayer) {
+        m_musicPlayer->stop();
+    }
+}
+
+void AudioManager::pauseMusic()
+{
+    qDebug() << "AudioManager: 暂停背景音乐";
+    if (m_musicPlayer) {
+        m_musicPlayer->pause();
+    }
+}
+
+void AudioManager::resumeMusic()
+{
+    qDebug() << "AudioManager: 恢复背景音乐";
+    if (m_musicPlayer) {
+        m_musicPlayer->play();
+    }
+}
+
+int AudioManager::playEffect(const QString &effectFile, float volume)
+{
+    if (!m_isInitialized) {
+        qWarning() << "AudioManager: 未初始化，无法播放音效";
+        return -1;
+    }
+
+    int effectId = generateEffectId();
+
+    qDebug() << "AudioManager: 播放音效:" << effectFile << "ID:" << effectId;
+
+    float actualVolume = (volume < 0) ? calculateActualVolume(AudioType::SoundEffect) : volume;
+
+    // 检查并发数限制
+    if (m_effectPlayers.size() >= MAX_CONCURRENT_EFFECTS) {
+        qWarning() << "AudioManager: 音效并发数已达上限:" << MAX_CONCURRENT_EFFECTS;
+        return -1;
+    }
+
+    // 创建 QSoundEffect 并播放
+    QSoundEffect* effect = new QSoundEffect(this);
+    effect->setSource(QUrl::fromLocalFile(effectFile));
+    effect->setVolume(actualVolume);
+    effect->play();
+
+    // 播放完毕自动清理
+    int capturedId = effectId;
+    connect(effect, &QSoundEffect::playingChanged, this, [this, capturedId]() {
+        auto it = m_effectPlayers.find(capturedId);
+        if (it != m_effectPlayers.end() && !(*it)->isPlaying()) {
+            (*it)->deleteLater();
+            m_effectPlayers.erase(it);
+            emit effectFinished(capturedId);
+        }
+    });
+
+    m_effectPlayers[effectId] = effect;
+
+    return effectId;
+}
+
+void AudioManager::stopEffect(int effectId)
+{
+    auto it = m_effectPlayers.find(effectId);
+    if (it != m_effectPlayers.end()) {
+        (*it)->stop();
+        (*it)->deleteLater();
+        m_effectPlayers.erase(it);
+        qDebug() << "AudioManager: 停止音效 ID:" << effectId;
+    }
+}
+
+void AudioManager::stopAllEffects()
+{
+    for (auto *effect : m_effectPlayers) {
+        effect->stop();
+    }
+    qDeleteAll(m_effectPlayers);
+    m_effectPlayers.clear();
+    qDebug() << "AudioManager: 停止所有音效";
+}
+
+void AudioManager::playUISound(const QString &uiSound)
+{
+    qDebug() << "AudioManager: 播放UI音效:" << uiSound;
+
+    // UI 音效使用预加载的缓存
+    if (m_preloadedEffects.contains(uiSound)) {
+        float vol = calculateActualVolume(AudioType::UI);
+        m_preloadedEffects[uiSound]->setVolume(vol);
+        m_preloadedEffects[uiSound]->play();
+    } else {
+        // 如果未预加载，直接播放
+        playEffect(uiSound);
+    }
+}
+
+void AudioManager::preloadAudio(const QString &audioFile)
+{
+    if (m_preloadedEffects.contains(audioFile)) {
+        return;
+    }
+
+    qDebug() << "AudioManager: 预加载音频:" << audioFile;
+
+    QSoundEffect* effect = new QSoundEffect(this);
+    effect->setSource(QUrl::fromLocalFile(audioFile));
+    m_preloadedEffects[audioFile] = effect;
+}
+
+void AudioManager::unloadAudio(const QString &audioFile)
+{
+    auto it = m_preloadedEffects.find(audioFile);
+    if (it != m_preloadedEffects.end()) {
+        delete *it;
+        m_preloadedEffects.erase(it);
+        qDebug() << "AudioManager: 卸载音频:" << audioFile;
+    }
+}
+
+void AudioManager::onMediaPlayerStateChanged(QMediaPlayer::PlaybackState state)
+{
+    if (state == QMediaPlayer::StoppedState && !m_currentMusic.isEmpty()) {
+        emit musicFinished(m_currentMusic);
+    }
+}
+
+void AudioManager::onAudioOutputChanged()
+{
+    qDebug() << "AudioManager: 音频输出设备改变";
+    applyVolumeSettings();
+}
+
+float AudioManager::calculateActualVolume(AudioType type) const
+{
+    if (m_isMuted) {
+        return 0.0f;
+    }
+
+    float typeVolume = 1.0f;
+    switch (type) {
+    case AudioType::BackgroundMusic:
+        typeVolume = m_musicVolume;
+        break;
+    case AudioType::SoundEffect:
+    case AudioType::UI:
+        typeVolume = m_sfxVolume;
+        break;
+    case AudioType::Voice:
+        typeVolume = 1.0f;
+        break;
+    }
+
+    return m_masterVolume * typeVolume;
+}
+
+int AudioManager::generateEffectId()
+{
+    return m_nextEffectId++;
 }

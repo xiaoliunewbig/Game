@@ -2,7 +2,7 @@
  * 文件名: PlayerInfoPanel.qml
  * 说明: 玩家信息面板组件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 import QtQuick 2.15
@@ -64,14 +64,8 @@ Rectangle {
                     anchors.margins: 3
                     source: "qrc:/resources/images/player_avatar.png"
                     fillMode: Image.PreserveAspectCrop
-                    layer.enabled: true
-                    layer.effect: OpacityMask {
-                        maskSource: Rectangle {
-                            width: parent.width
-                            height: parent.height
-                            radius: width / 2
-                        }
-                    }
+                    // 圆形裁剪（使用clip代替OpacityMask）
+                    layer.enabled: false
                 }
             }
             

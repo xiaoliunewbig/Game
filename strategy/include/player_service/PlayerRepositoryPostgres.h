@@ -7,6 +7,8 @@
 #ifndef STRATEGY_PLAYER_SERVICE_PLAYERREPOSITORYPOSTGRES_H
 #define STRATEGY_PLAYER_SERVICE_PLAYERREPOSITORYPOSTGRES_H
 
+#ifdef HAS_PQXX
+
 #include "player_service/IPlayerRepository.h"
 #include <pqxx/pqxx>
 #include <memory>
@@ -39,5 +41,7 @@ private:
 };
 
 } // namespace strategy
+
+#endif // HAS_PQXX
 
 #endif // STRATEGY_PLAYER_SERVICE_PLAYERREPOSITORYPOSTGRES_H 

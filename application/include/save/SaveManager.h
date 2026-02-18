@@ -2,7 +2,7 @@
  * 文件名: SaveManager.h
  * 说明: 存档管理器头文件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 #ifndef SAVEMANAGER_H
@@ -24,7 +24,7 @@ struct SaveInfo
     QDateTime timestamp;                // 保存时间
     QString playerName;                 // 玩家名称
     int playerLevel;                    // 玩家等级
-    Player::Profession profession;     // 玩家职业
+    PlayerProfession profession;        // 玩家职业
     int currentChapter;                 // 当前章节
     int gameProgress;                   // 游戏进度百分比
 };

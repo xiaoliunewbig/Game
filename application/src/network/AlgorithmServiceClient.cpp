@@ -1,50 +1,44 @@
 /*
  * 文件名: AlgorithmServiceClient.cpp
- * 说明: 算法服务客户端的具体实现。
+ * 说明: 算法服务gRPC客户端实现
  * 作者: 彭承康
- * 创建时间: 2025-07-20
- *
- * 本文件实现算法服务客户端的所有功能，包括连接管理、
- * 请求发送和响应处理。
+ * 创建时间: 2026-02-18
  */
 #include "network/AlgorithmServiceClient.h"
-#include <QNetworkAccessManager>
-#include <QNetworkRequest>
-#include <QNetworkReply>
-#include <QJsonDocument>
-#include <QJsonObject>
-#include <QTimer>
 #include <QDebug>
+#include <QJsonArray>
 
 AlgorithmServiceClient::AlgorithmServiceClient(QObject *parent)
     : QObject(parent)
-    , m_networkManager(nullptr)
     , m_connected(false)
-    , m_serviceUrl("http://localhost:50051")
+    , m_serviceUrl("localhost:50051")
     , m_timeout(10000)
     , m_retryCount(3)
 {
-    // 初始化网络管理器
-    m_networkManager = new QNetworkAccessManager(this);
-    
-    qDebug() << "AlgorithmServiceClient: 算法服务客户端创建完成";
+    qDebug() << "AlgorithmServiceClient: gRPC客户端创建完成";
 }
 
 AlgorithmServiceClient::~AlgorithmServiceClient()
 {
     disconnect();
-    qDebug() << "AlgorithmServiceClient: 算法服务客户端销毁";
+    qDebug() << "AlgorithmServiceClient: gRPC客户端销毁";
 }
 
 bool AlgorithmServiceClient::initialize(const QString &serviceUrl)
 {
     m_serviceUrl = serviceUrl;
-    
-    // 确保URL格式正确
-    if (!m_serviceUrl.startsWith("http://") && !m_serviceUrl.startsWith("https://")) {
-        m_serviceUrl = "http://" + m_serviceUrl;
+
+    // Strip http:// prefix if present — gRPC uses raw host:port
+    if (m_serviceUrl.startsWith("http://")) {
+        m_serviceUrl = m_serviceUrl.mid(7);
+    } else if (m_serviceUrl.startsWith("https://")) {
+        m_serviceUrl = m_serviceUrl.mid(8);
     }
-    
+
+    channel_ = grpc::CreateChannel(m_serviceUrl.toStdString(),
+                                   grpc::InsecureChannelCredentials());
+    stub_ = algorithm_proto::AlgorithmService::NewStub(channel_);
+
     qDebug() << "AlgorithmServiceClient: 初始化完成，服务地址:" << m_serviceUrl;
     return true;
 }
@@ -55,10 +49,11 @@ void AlgorithmServiceClient::connectToService()
         qWarning() << "AlgorithmServiceClient: 已经连接到服务";
         return;
     }
-    
-    qDebug() << "AlgorithmServiceClient: 开始连接算法服务";
-    
-    // 发送健康检查请求
+
+    if (!stub_) {
+        initialize(m_serviceUrl);
+    }
+
     testConnection();
 }
 
@@ -67,11 +62,10 @@ void AlgorithmServiceClient::disconnect()
     if (!m_connected) {
         return;
     }
-    
+
     m_connected = false;
     emit disconnected();
-    
-    qDebug() << "AlgorithmServiceClient: 断开算法服务连接";
+    qDebug() << "AlgorithmServiceClient: 断开gRPC连接";
 }
 
 bool AlgorithmServiceClient::isConnected() const
@@ -81,83 +75,207 @@ bool AlgorithmServiceClient::isConnected() const
 
 bool AlgorithmServiceClient::testConnection()
 {
-    QJsonObject request;
-    request["type"] = "health_check";
-    request["timestamp"] = QDateTime::currentMSecsSinceEpoch();
-    
-    sendRequest("/health", request, [this](const QJsonObject &response) {
-        if (response["status"].toString() == "ok") {
-            if (!m_connected) {
-                m_connected = true;
-                emit connected();
-                qDebug() << "AlgorithmServiceClient: 连接成功";
-            }
-        } else {
-            handleConnectionError("健康检查失败");
+    if (!stub_) {
+        handleConnectionError("gRPC stub未初始化");
+        return false;
+    }
+
+    // Use a lightweight RPC call as health check
+    algorithm_proto::ValidationRequest request;
+    request.set_validation_type("health_check");
+    algorithm_proto::ValidationResult response;
+
+    grpc::ClientContext context;
+    std::chrono::system_clock::time_point deadline =
+        std::chrono::system_clock::now() + std::chrono::milliseconds(m_timeout);
+    context.set_deadline(deadline);
+
+    grpc::Status status = stub_->ValidateInput(&context, request, &response);
+
+    if (status.ok()) {
+        if (!m_connected) {
+            m_connected = true;
+            emit connected();
+            qDebug() << "AlgorithmServiceClient: gRPC连接成功";
         }
-    });
-    
-    return true;
+        return true;
+    } else {
+        handleConnectionError(QString::fromStdString(status.error_message()));
+        return false;
+    }
 }
 
-void AlgorithmServiceClient::calculateDamage(const QJsonObject &request, 
+void AlgorithmServiceClient::calculateDamage(const QJsonObject &request,
                                            std::function<void(const QJsonObject&)> callback)
 {
-    if (!m_connected) {
-        qWarning() << "AlgorithmServiceClient: 服务未连接，无法计算伤害";
+    if (!stub_) {
+        qWarning() << "AlgorithmServiceClient: stub未初始化";
         return;
     }
-    
-    QJsonObject damageRequest = request;
-    damageRequest["type"] = "calculate_damage";
-    damageRequest["timestamp"] = QDateTime::currentMSecsSinceEpoch();
-    
-    sendRequest("/calculate_damage", damageRequest, callback);
+
+    algorithm_proto::CalculationRequest grpcRequest;
+    grpcRequest.set_attacker_id(request["attackerId"].toInt());
+    grpcRequest.set_defender_id(request["defenderId"].toInt());
+    grpcRequest.set_skill_id(request["skillId"].toInt());
+
+    algorithm_proto::DamageResult grpcResponse;
+    grpc::ClientContext context;
+    std::chrono::system_clock::time_point deadline =
+        std::chrono::system_clock::now() + std::chrono::milliseconds(m_timeout);
+    context.set_deadline(deadline);
+
+    grpc::Status status = stub_->CalculateDamage(&context, grpcRequest, &grpcResponse);
+
+    if (status.ok()) {
+        QJsonObject response;
+        response["damage"] = grpcResponse.damage();
+        response["effect"] = QString::fromStdString(grpcResponse.effect());
+        response["isCritical"] = grpcResponse.is_critical();
+        response["elementMultiplier"] = static_cast<double>(grpcResponse.element_multiplier());
+        if (callback) callback(response);
+    } else {
+        qWarning() << "AlgorithmServiceClient: calculateDamage失败:" << QString::fromStdString(status.error_message());
+        if (callback) {
+            QJsonObject errorResponse;
+            errorResponse["error"] = true;
+            errorResponse["message"] = QString::fromStdString(status.error_message());
+            callback(errorResponse);
+        }
+    }
 }
 
 void AlgorithmServiceClient::makeAIDecision(const QJsonObject &request,
                                           std::function<void(const QJsonObject&)> callback)
 {
-    if (!m_connected) {
-        qWarning() << "AlgorithmServiceClient: 服务未连接，无法进行AI决策";
+    if (!stub_) {
+        qWarning() << "AlgorithmServiceClient: stub未初始化";
         return;
     }
-    
-    QJsonObject aiRequest = request;
-    aiRequest["type"] = "ai_decision";
-    aiRequest["timestamp"] = QDateTime::currentMSecsSinceEpoch();
-    
-    sendRequest("/ai_decision", aiRequest, callback);
+
+    algorithm_proto::AIDecisionRequest grpcRequest;
+    grpcRequest.set_npc_id(request["npcId"].toInt());
+
+    QJsonArray contextArray = request["context"].toArray();
+    for (const auto &val : contextArray) {
+        grpcRequest.add_context(val.toInt());
+    }
+
+    algorithm_proto::ActionResponse grpcResponse;
+    grpc::ClientContext context;
+    std::chrono::system_clock::time_point deadline =
+        std::chrono::system_clock::now() + std::chrono::milliseconds(m_timeout);
+    context.set_deadline(deadline);
+
+    grpc::Status status = stub_->AIActionDecision(&context, grpcRequest, &grpcResponse);
+
+    if (status.ok()) {
+        QJsonObject response;
+        response["actionId"] = grpcResponse.action_id();
+        response["description"] = QString::fromStdString(grpcResponse.description());
+        response["confidence"] = static_cast<double>(grpcResponse.confidence());
+        if (callback) callback(response);
+    } else {
+        qWarning() << "AlgorithmServiceClient: makeAIDecision失败:" << QString::fromStdString(status.error_message());
+        if (callback) {
+            QJsonObject errorResponse;
+            errorResponse["error"] = true;
+            errorResponse["message"] = QString::fromStdString(status.error_message());
+            callback(errorResponse);
+        }
+    }
 }
 
 void AlgorithmServiceClient::getSkillTree(const QJsonObject &request,
                                         std::function<void(const QJsonObject&)> callback)
 {
-    if (!m_connected) {
-        qWarning() << "AlgorithmServiceClient: 服务未连接，无法获取技能树";
+    if (!stub_) {
+        qWarning() << "AlgorithmServiceClient: stub未初始化";
         return;
     }
-    
-    QJsonObject skillRequest = request;
-    skillRequest["type"] = "get_skill_tree";
-    skillRequest["timestamp"] = QDateTime::currentMSecsSinceEpoch();
-    
-    sendRequest("/skill_tree", skillRequest, callback);
+
+    algorithm_proto::SkillTreeRequest grpcRequest;
+    grpcRequest.set_character_id(request["playerId"].toInt());
+
+    algorithm_proto::SkillTree grpcResponse;
+    grpc::ClientContext context;
+    std::chrono::system_clock::time_point deadline =
+        std::chrono::system_clock::now() + std::chrono::milliseconds(m_timeout);
+    context.set_deadline(deadline);
+
+    grpc::Status status = stub_->GetSkillTree(&context, grpcRequest, &grpcResponse);
+
+    if (status.ok()) {
+        QJsonObject response;
+        response["characterId"] = grpcResponse.character_id();
+        QJsonArray skillsArray;
+        for (int i = 0; i < grpcResponse.skills_size(); ++i) {
+            const auto& skill = grpcResponse.skills(i);
+            QJsonObject skillObj;
+            skillObj["skillId"] = skill.skill_id();
+            skillObj["name"] = QString::fromStdString(skill.name());
+            skillObj["description"] = QString::fromStdString(skill.description());
+            skillObj["damageMultiplier"] = static_cast<double>(skill.damage_multiplier());
+            skillObj["manaCost"] = skill.mana_cost();
+            skillObj["cooldown"] = skill.cooldown();
+            skillObj["canLearn"] = skill.can_learn();
+            skillsArray.append(skillObj);
+        }
+        response["skills"] = skillsArray;
+        if (callback) callback(response);
+    } else {
+        qWarning() << "AlgorithmServiceClient: getSkillTree失败:" << QString::fromStdString(status.error_message());
+        if (callback) {
+            QJsonObject errorResponse;
+            errorResponse["error"] = true;
+            errorResponse["message"] = QString::fromStdString(status.error_message());
+            callback(errorResponse);
+        }
+    }
 }
 
 void AlgorithmServiceClient::validateData(const QJsonObject &request,
                                         std::function<void(const QJsonObject&)> callback)
 {
-    if (!m_connected) {
-        qWarning() << "AlgorithmServiceClient: 服务未连接，无法验证数据";
+    if (!stub_) {
+        qWarning() << "AlgorithmServiceClient: stub未初始化";
         return;
     }
-    
-    QJsonObject validateRequest = request;
-    validateRequest["type"] = "validate_data";
-    validateRequest["timestamp"] = QDateTime::currentMSecsSinceEpoch();
-    
-    sendRequest("/validate", validateRequest, callback);
+
+    algorithm_proto::ValidationRequest grpcRequest;
+    grpcRequest.set_validation_type(request["validationType"].toString().toStdString());
+
+    QJsonObject fields = request["fields"].toObject();
+    auto* protoFields = grpcRequest.mutable_fields();
+    for (auto it = fields.begin(); it != fields.end(); ++it) {
+        (*protoFields)[it.key().toStdString()] = it.value().toString().toStdString();
+    }
+
+    algorithm_proto::ValidationResult grpcResponse;
+    grpc::ClientContext context;
+    std::chrono::system_clock::time_point deadline =
+        std::chrono::system_clock::now() + std::chrono::milliseconds(m_timeout);
+    context.set_deadline(deadline);
+
+    grpc::Status status = stub_->ValidateInput(&context, grpcRequest, &grpcResponse);
+
+    if (status.ok()) {
+        QJsonObject response;
+        response["isValid"] = grpcResponse.is_valid();
+        QJsonArray errors;
+        for (int i = 0; i < grpcResponse.errors_size(); ++i) {
+            errors.append(QString::fromStdString(grpcResponse.errors(i)));
+        }
+        response["errors"] = errors;
+        if (callback) callback(response);
+    } else {
+        qWarning() << "AlgorithmServiceClient: validateData失败:" << QString::fromStdString(status.error_message());
+        if (callback) {
+            QJsonObject errorResponse;
+            errorResponse["error"] = true;
+            errorResponse["message"] = QString::fromStdString(status.error_message());
+            callback(errorResponse);
+        }
+    }
 }
 
 void AlgorithmServiceClient::setTimeout(int timeoutMs)
@@ -172,115 +290,6 @@ void AlgorithmServiceClient::setRetryCount(int count)
     qDebug() << "AlgorithmServiceClient: 设置重试次数为" << m_retryCount;
 }
 
-void AlgorithmServiceClient::sendRequest(const QString &endpoint, 
-                                       const QJsonObject &request,
-                                       std::function<void(const QJsonObject&)> callback,
-                                       int retryAttempt)
-{
-    QString url = m_serviceUrl + endpoint;
-    
-    QNetworkRequest netRequest;
-    netRequest.setUrl(QUrl(url));
-    netRequest.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    netRequest.setRawHeader("User-Agent", "GameClient/1.0");
-    
-    // 设置超时
-    netRequest.setAttribute(QNetworkRequest::RedirectPolicyAttribute, 
-                           QNetworkRequest::NoLessSafeRedirectPolicy);
-    
-    QJsonDocument doc(request);
-    QByteArray data = doc.toJson(QJsonDocument::Compact);
-    
-    QNetworkReply *reply = m_networkManager->post(netRequest, data);
-    
-    // 设置超时定时器
-    QTimer *timeoutTimer = new QTimer(this);
-    timeoutTimer->setSingleShot(true);
-    timeoutTimer->start(m_timeout);
-    
-    connect(timeoutTimer, &QTimer::timeout, [reply, timeoutTimer]() {
-        reply->abort();
-        timeoutTimer->deleteLater();
-    });
-    
-    connect(reply, &QNetworkReply::finished, [this, reply, callback, endpoint, request, retryAttempt, timeoutTimer]() {
-        timeoutTimer->stop();
-        timeoutTimer->deleteLater();
-        
-        if (reply->error() == QNetworkReply::NoError) {
-            // 请求成功
-            QByteArray responseData = reply->readAll();
-            QJsonParseError parseError;
-            QJsonDocument responseDoc = QJsonDocument::fromJson(responseData, &parseError);
-            
-            if (parseError.error == QJsonParseError::NoError) {
-                QJsonObject responseObj = responseDoc.object();
-                
-                if (callback) {
-                    callback(responseObj);
-                }
-                
-                qDebug() << "AlgorithmServiceClient: 请求成功" << endpoint;
-            } else {
-                qWarning() << "AlgorithmServiceClient: 响应解析失败" << parseError.errorString();
-                handleRequestError(endpoint, request, callback, retryAttempt, "响应解析失败");
-            }
-        } else {
-            // 请求失败
-            QString errorString = reply->errorString();
-            qWarning() << "AlgorithmServiceClient: 请求失败" << endpoint << errorString;
-            
-            if (reply->error() == QNetworkReply::TimeoutError) {
-                handleRequestError(endpoint, request, callback, retryAttempt, "请求超时");
-            } else {
-                handleRequestError(endpoint, request, callback, retryAttempt, errorString);
-            }
-        }
-        
-        reply->deleteLater();
-    });
-    
-    qDebug() << "AlgorithmServiceClient: 发送请求" << endpoint << "尝试次数:" << (retryAttempt + 1);
-}
-
-void AlgorithmServiceClient::handleRequestError(const QString &endpoint,
-                                               const QJsonObject &request,
-                                               std::function<void(const QJsonObject&)> callback,
-                                               int retryAttempt,
-                                               const QString &error)
-{
-    if (retryAttempt < m_retryCount) {
-        // 重试请求
-        int delay = (retryAttempt + 1) * 1000; // 递增延迟
-        
-        qDebug() << "AlgorithmServiceClient: 重试请求" << endpoint 
-                 << "延迟" << delay << "ms";
-        
-        QTimer::singleShot(delay, [this, endpoint, request, callback, retryAttempt]() {
-            sendRequest(endpoint, request, callback, retryAttempt + 1);
-        });
-    } else {
-        // 重试次数用完，报告错误
-        qCritical() << "AlgorithmServiceClient: 请求最终失败" << endpoint << error;
-        
-        emit errorOccurred(QString("请求失败: %1 - %2").arg(endpoint, error));
-        
-        // 如果是连接相关错误，标记为断开连接
-        if (error.contains("连接") || error.contains("超时") || error.contains("网络")) {
-            handleConnectionError(error);
-        }
-        
-        // 返回错误响应
-        if (callback) {
-            QJsonObject errorResponse;
-            errorResponse["error"] = true;
-            errorResponse["message"] = error;
-            errorResponse["endpoint"] = endpoint;
-            callback(errorResponse);
-        }
-    }
-}
-
 void AlgorithmServiceClient::handleConnectionError(const QString &error)
 {
     if (m_connected) {
@@ -288,11 +297,10 @@ void AlgorithmServiceClient::handleConnectionError(const QString &error)
         emit disconnected();
         qWarning() << "AlgorithmServiceClient: 连接丢失" << error;
     }
-    
     emit errorOccurred(error);
 }
 
-QJsonObject AlgorithmServiceClient::createDamageRequest(int attackerId, int defenderId, 
+QJsonObject AlgorithmServiceClient::createDamageRequest(int attackerId, int defenderId,
                                                        int skillId, int attackerLevel,
                                                        int attackerAttack, int defenderDefense)
 {
@@ -303,7 +311,6 @@ QJsonObject AlgorithmServiceClient::createDamageRequest(int attackerId, int defe
     request["attackerLevel"] = attackerLevel;
     request["attackerAttack"] = attackerAttack;
     request["defenderDefense"] = defenderDefense;
-    
     return request;
 }
 
@@ -312,7 +319,6 @@ QJsonObject AlgorithmServiceClient::createAIDecisionRequest(int npcId, const QJs
     QJsonObject request;
     request["npcId"] = npcId;
     request["context"] = context;
-    
     return request;
 }
 
@@ -321,6 +327,5 @@ QJsonObject AlgorithmServiceClient::createSkillTreeRequest(int playerId, const Q
     QJsonObject request;
     request["playerId"] = playerId;
     request["profession"] = profession;
-    
     return request;
 }

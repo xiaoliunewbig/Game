@@ -11,7 +11,6 @@
  * - 处理玩家输入和游戏交互
  * - 显示游戏状态和信息面板
  */
-
 #include "ui/GameplayWindow.h"
 #include "game/InventorySystem.h"
 #include "config/ConfigManager.h"
@@ -29,7 +28,9 @@
 #include <QGroupBox>
 #include <QTimer>
 #include <QKeyEvent>
+#include <QLineEdit>
 #include <QMouseEvent>
+#include <QMenu>
 #include <QDebug>
 
 GameplayWindow::GameplayWindow(QWidget *parent)
@@ -216,29 +217,37 @@ void GameplayWindow::focusChat()
 
 void GameplayWindow::updatePlayerInfo(const QString &name, int level, int health, int maxHealth, int mana, int maxMana, int experience, int maxExperience)
 {
+    // 参数校验
+    maxHealth = qMax(1, maxHealth);
+    maxMana = qMax(1, maxMana);
+    maxExperience = qMax(1, maxExperience);
+    health = qBound(0, health, maxHealth);
+    mana = qBound(0, mana, maxMana);
+    experience = qBound(0, experience, maxExperience);
+
     // 更新玩家姓名和等级
     if (m_playerNameLabel) {
         m_playerNameLabel->setText(name);
     }
-    
+
     if (m_playerLevelLabel) {
         m_playerLevelLabel->setText(QString("等级 %1").arg(level));
     }
-    
+
     // 更新生命值
     if (m_healthBar) {
         m_healthBar->setMaximum(maxHealth);
         m_healthBar->setValue(health);
         m_healthBar->setFormat(QString("%1/%2").arg(health).arg(maxHealth));
     }
-    
+
     // 更新魔法值
     if (m_manaBar) {
         m_manaBar->setMaximum(maxMana);
         m_manaBar->setValue(mana);
         m_manaBar->setFormat(QString("%1/%2").arg(mana).arg(maxMana));
     }
-    
+
     // 更新经验值
     if (m_experienceBar) {
         m_experienceBar->setMaximum(maxExperience);
@@ -251,6 +260,14 @@ void GameplayWindow::addChatMessage(const QString &sender, const QString &messag
 {
     if (!m_logTextEdit) {
         return;
+    }
+
+    // 限制消息数量，防止内存持续增长
+    if (m_logTextEdit->document()->blockCount() > 200) {
+        QTextCursor cursor = m_logTextEdit->textCursor();
+        cursor.movePosition(QTextCursor::Start);
+        cursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor, 50);
+        cursor.removeSelectedText();
     }
     
     // 根据消息类型设置颜色
@@ -722,9 +739,11 @@ void GameplayWindow::startUpdateTimer()
 
 void GameplayWindow::updateUI()
 {
-    // 更新游戏界面
-    // TODO: 实现具体的UI更新逻辑
-    
+    // 更新游戏界面渲染
+    if (m_gameView) {
+        m_gameView->update();
+    }
+
     // 更新性能信息
     if (m_performanceMonitor && m_performanceMonitor->isEnabled()) {
         // 可以在这里更新性能相关的UI元素
@@ -733,40 +752,57 @@ void GameplayWindow::updateUI()
 
 void GameplayWindow::handleLeftClick(const QPoint &position)
 {
-    // 处理左键点击
-    qDebug() << "GameplayWindow: 左键点击位置:" << position;
-    
-    // TODO: 实现具体的左键点击处理逻辑
-    // 例如：移动角色、选择目标等
+    // 发射信号供外部处理（移动角色、选择目标等）
+    emit leftClicked(position);
 }
 
 void GameplayWindow::handleRightClick(const QPoint &position)
 {
     // 处理右键点击
     qDebug() << "GameplayWindow: 右键点击位置:" << position;
-    
-    // TODO: 实现具体的右键点击处理逻辑
-    // 例如：显示上下文菜单、使用技能等
+
+    // 发射信号
+    emit rightClicked(position);
+
+    // 弹出上下文菜单
+    QMenu contextMenu(this);
+    contextMenu.setStyleSheet(
+        "QMenu { background-color: #2c2c2c; color: white; border: 1px solid #555; }"
+        "QMenu::item:selected { background-color: #3498db; }"
+    );
+    contextMenu.addAction("攻击", this, [this]() {
+        addChatMessage("系统", "选择攻击目标", ChatMessageType::Combat);
+    });
+    contextMenu.addAction("交互", this, [this]() {
+        addChatMessage("系统", "与目标交互", ChatMessageType::System);
+    });
+    contextMenu.addAction("查看", this, [this]() {
+        addChatMessage("系统", "查看目标信息", ChatMessageType::System);
+    });
+    contextMenu.exec(mapToGlobal(position));
 }
 
 void GameplayWindow::onSkillButtonClicked(int skillIndex)
 {
     qDebug() << "GameplayWindow: 技能按钮点击 - 索引:" << skillIndex;
-    
-    // TODO: 实现技能使用逻辑
+
+    // 通过聊天消息反馈技能使用
+    addChatMessage("系统", QString("释放技能 [%1]").arg(skillIndex + 1), ChatMessageType::Combat);
     emit skillUsed(skillIndex);
 }
 
 void GameplayWindow::onInventorySlotClicked(int slotIndex)
 {
     qDebug() << "GameplayWindow: 背包槽位点击 - 索引:" << slotIndex;
-    
-    // TODO: 实现背包槽位点击处理
+
     if (m_inventorySystem) {
-        // 获取槽位信息并处理
         QJsonObject slotInfo = m_inventorySystem->getSlotInfo(slotIndex);
         if (!slotInfo.isEmpty()) {
+            QString itemName = slotInfo["name"].toString();
+            addChatMessage("系统", QString("选中物品: %1").arg(itemName), ChatMessageType::System);
             emit inventorySlotClicked(slotIndex, slotInfo);
+        } else {
+            addChatMessage("系统", QString("空槽位 [%1]").arg(slotIndex + 1), ChatMessageType::System);
         }
     }
 }

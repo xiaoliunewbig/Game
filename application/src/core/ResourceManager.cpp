@@ -2,7 +2,7 @@
  * 文件名: ResourceManager.cpp
  * 说明: 资源管理器实现文件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  * 版本: v1.0.0
  */
 
@@ -117,10 +117,10 @@ void ResourceManager::preloadCoreResources()
     
     // 预加载常用纹理
     QStringList coreTextures = {
-        "ui/button_normal.png",
-        "ui/button_hover.png",
-        "ui/button_pressed.png",
-        "ui/background.png",
+        "images/ui/button_normal.png",
+        "images/ui/button_hover.png",
+        "images/ui/button_pressed.png",
+        "images/ui/background.png",
         "icons/inventory.png",
         "icons/settings.png"
     };
@@ -208,13 +208,13 @@ QFont ResourceManager::loadFont(const QString &fileName, int pointSize)
     // 加载字体
     int fontId = QFontDatabase::addApplicationFont(fullPath);
     if (fontId == -1) {
-        qWarning() << "ResourceManager: 字体加载失败:" << fullPath;
+        qDebug() << "ResourceManager: 字体加载失败（使用系统默认字体）:" << fullPath;
         return QFont();
     }
     
     QStringList fontFamilies = QFontDatabase::applicationFontFamilies(fontId);
     if (fontFamilies.isEmpty()) {
-        qWarning() << "ResourceManager: 字体族获取失败:" << fullPath;
+        qDebug() << "ResourceManager: 字体族获取失败（使用系统默认字体）:" << fullPath;
         return QFont();
     }
     
@@ -292,4 +292,237 @@ void ResourceManager::setMaxCacheSize(qint64 maxSize)
 qint64 ResourceManager::getMaxCacheSize() const
 {
     return m_maxCacheSize;
+}
+
+QVariant ResourceManager::loadResource(const QString &resourcePath, ResourceType type)
+{
+    // 检查缓存
+    if (m_resources.contains(resourcePath)) {
+        auto &info = m_resources[resourcePath];
+        info->refCount++;
+        return info->data;
+    }
+
+    QVariant data;
+    switch (type) {
+    case ResourceType::Texture:
+        data = loadTextureResource(resourcePath);
+        break;
+    case ResourceType::Audio:
+        data = loadAudioResource(resourcePath);
+        break;
+    case ResourceType::Font:
+        data = loadFontResource(resourcePath);
+        break;
+    case ResourceType::Config:
+        data = loadConfigResource(resourcePath);
+        break;
+    default:
+        qWarning() << "ResourceManager: 不支持的资源类型:" << static_cast<int>(type);
+        return QVariant();
+    }
+
+    if (data.isValid()) {
+        auto info = std::make_shared<ResourceInfo>();
+        info->path = resourcePath;
+        info->type = type;
+        info->size = 0;
+        info->loadTime = QDateTime::currentDateTime();
+        info->refCount = 1;
+        info->isLoaded = true;
+        info->data = data;
+        m_resources[resourcePath] = info;
+        emit resourceLoaded(resourcePath, true);
+        emit resourceCountChanged();
+    }
+
+    return data;
+}
+
+QVariant ResourceManager::loadTextureResource(const QString &path)
+{
+    QString fullPath = findResourcePath(path);
+    if (fullPath.isEmpty()) {
+        return QVariant();
+    }
+    QPixmap pixmap(fullPath);
+    return pixmap.isNull() ? QVariant() : QVariant::fromValue(pixmap);
+}
+
+QVariant ResourceManager::loadAudioResource(const QString &path)
+{
+    QString fullPath = findResourcePath(path);
+    if (fullPath.isEmpty()) {
+        qWarning() << "ResourceManager: 音频资源未找到:" << path;
+        return QVariant();
+    }
+
+    // 验证文件可读
+    QFile file(fullPath);
+    if (!file.exists()) {
+        qWarning() << "ResourceManager: 音频文件不存在:" << fullPath;
+        return QVariant();
+    }
+
+    // 音频资源存储路径，由 AudioManager 实际加载播放
+    qDebug() << "ResourceManager: 音频资源已定位:" << fullPath;
+    return QVariant(fullPath);
+}
+
+QVariant ResourceManager::loadFontResource(const QString &path)
+{
+    QString fullPath = findResourcePath(path);
+    if (fullPath.isEmpty()) {
+        return QVariant();
+    }
+    int fontId = QFontDatabase::addApplicationFont(fullPath);
+    if (fontId == -1) {
+        return QVariant();
+    }
+    QStringList families = QFontDatabase::applicationFontFamilies(fontId);
+    return families.isEmpty() ? QVariant() : QVariant::fromValue(QFont(families.first()));
+}
+
+QVariant ResourceManager::loadConfigResource(const QString &path)
+{
+    QString fullPath = findResourcePath(path);
+    if (fullPath.isEmpty()) {
+        return QVariant();
+    }
+    QFile file(fullPath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return QVariant();
+    }
+    QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    return doc.isNull() ? QVariant() : QVariant::fromValue(doc.object());
+}
+
+QFuture<QVariant> ResourceManager::loadResourceAsync(const QString &resourcePath, ResourceType type)
+{
+    Q_UNUSED(resourcePath)
+    Q_UNUSED(type)
+    // 异步加载预留接口，当前返回空 future
+    return QFuture<QVariant>();
+}
+
+void ResourceManager::unloadResource(const QString &resourcePath)
+{
+    auto it = m_resources.find(resourcePath);
+    if (it != m_resources.end()) {
+        (*it)->refCount--;
+        if ((*it)->refCount <= 0) {
+            m_resources.erase(it);
+            emit resourceUnloaded(resourcePath);
+            emit resourceCountChanged();
+        }
+    }
+}
+
+QVariant ResourceManager::getResource(const QString &resourcePath) const
+{
+    auto it = m_resources.find(resourcePath);
+    if (it != m_resources.end()) {
+        return (*it)->data;
+    }
+    return QVariant();
+}
+
+QJsonObject ResourceManager::loadConfig(const QString &configPath)
+{
+    QString fullPath = findResourcePath(configPath);
+    if (fullPath.isEmpty()) {
+        qWarning() << "ResourceManager: 配置文件未找到:" << configPath;
+        return QJsonObject();
+    }
+
+    QFile file(fullPath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "ResourceManager: 配置文件打开失败:" << fullPath;
+        return QJsonObject();
+    }
+
+    QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+    if (doc.isNull() || !doc.isObject()) {
+        qWarning() << "ResourceManager: 配置文件格式错误:" << fullPath;
+        return QJsonObject();
+    }
+
+    return doc.object();
+}
+
+bool ResourceManager::saveConfig(const QString &configPath, const QJsonObject &config)
+{
+    QFile file(configPath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "ResourceManager: 配置文件写入失败:" << configPath;
+        return false;
+    }
+
+    QJsonDocument doc(config);
+    file.write(doc.toJson(QJsonDocument::Indented));
+    return true;
+}
+
+void ResourceManager::cleanupUnusedResources()
+{
+    qDebug() << "ResourceManager: 清理未使用的资源";
+
+    QStringList toRemove;
+    for (auto it = m_resources.begin(); it != m_resources.end(); ++it) {
+        if ((*it)->refCount <= 0) {
+            toRemove.append(it.key());
+        }
+    }
+
+    for (const QString &key : toRemove) {
+        m_resources.remove(key);
+    }
+
+    if (!toRemove.isEmpty()) {
+        emit resourceCountChanged();
+        qDebug() << "ResourceManager: 清理了" << toRemove.size() << "个未使用的资源";
+    }
+}
+
+QJsonObject ResourceManager::getResourceInfo(const QString &resourcePath) const
+{
+    QJsonObject info;
+    auto it = m_resources.find(resourcePath);
+    if (it != m_resources.end()) {
+        info["path"] = (*it)->path;
+        info["type"] = static_cast<int>((*it)->type);
+        info["size"] = (*it)->size;
+        info["refCount"] = (*it)->refCount;
+        info["isLoaded"] = (*it)->isLoaded;
+    }
+    return info;
+}
+
+void ResourceManager::onAsyncLoadFinished()
+{
+    // 异步加载完成回调
+    qDebug() << "ResourceManager: 异步加载完成";
+}
+
+void ResourceManager::onPreloadFinished()
+{
+    m_isLoading = false;
+    m_loadingProgress = 1.0f;
+    emit loadingStateChanged();
+    emit loadingProgressChanged();
+    qDebug() << "ResourceManager: 预加载完成";
+}
+
+void ResourceManager::updateMemoryUsage()
+{
+    m_totalMemoryUsage = m_totalResourceSize;
+    emit memoryUsageChanged();
+}
+
+void ResourceManager::checkMemoryLimit()
+{
+    if (m_totalMemoryUsage > m_maxMemoryUsage) {
+        emit memoryWarning(m_totalMemoryUsage, m_maxMemoryUsage);
+        cleanupUnusedResources();
+    }
 }

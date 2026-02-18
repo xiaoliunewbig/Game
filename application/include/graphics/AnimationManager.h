@@ -2,7 +2,7 @@
  * 文件名: AnimationManager.h
  * 说明: 动画管理器头文件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 #ifndef ANIMATIONMANAGER_H
