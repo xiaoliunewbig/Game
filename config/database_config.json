@@ -1,19 +1,9 @@
 {
   "databases": {
     "primary": {
-      "type": "postgresql",
-      "host": "localhost",
-      "port": 5432,
-      "database": "game_db",
-      "username": "game_user",
-      "password": "game_password",
-      "max_connections": 20,
-      "min_connections": 2,
-      "connection_timeout": 30,
-      "extra_params": {
-        "sslmode": "prefer",
-        "connect_timeout": "10"
-      }
+      "type": "sqlite",
+      "database": "game_data.db",
+      "max_connections": 5
     },
     "cache": {
       "type": "sqlite",

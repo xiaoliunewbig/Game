@@ -2,7 +2,7 @@
  * 文件名: BaseRepository.h
  * 说明: 数据库仓储基类
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 #ifndef STRATEGY_DATABASE_BASEREPOSITORY_H
 #define STRATEGY_DATABASE_BASEREPOSITORY_H

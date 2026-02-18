@@ -2,7 +2,7 @@
  * 文件名: ConfigService.cpp
  * 说明: 配置管理服务实现
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 #include "config/ConfigService.h"
@@ -191,6 +191,7 @@ std::vector<std::string> ConfigService::GetAllKeys() const {
 std::string ConfigService::GetNestedValue(const std::string& nested_key) const {
     // 简化的嵌套键处理
     // 实际实现中应该支持更复杂的嵌套结构
+    (void)nested_key;
     return "";
 }
 

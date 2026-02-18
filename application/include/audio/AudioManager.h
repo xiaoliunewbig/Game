@@ -2,7 +2,7 @@
  * 文件名: AudioManager.h
  * 说明: 音频管理器类，负责游戏音频的播放和管理。
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本类管理游戏中的所有音频功能，包括背景音乐、音效、
  * 语音等的播放控制。提供音量调节、音频缓存、3D音效等
@@ -14,6 +14,8 @@
 #include <QMediaPlayer>
 #include <QAudioOutput>
 #include <QSoundEffect>
+#include <QMediaDevices>
+#include <QAudioDevice>
 #include <QHash>
 #include <QQueue>
 #include <memory>
@@ -54,6 +56,8 @@ class AudioManager : public QObject
     Q_PROPERTY(QString currentMusic READ currentMusic NOTIFY currentMusicChanged)
 
 public:
+    // 音效音量设置（补充声明，确保信号槽可用）
+    void setSFXVolume(float volume);
     /**
      * @brief 构造函数
      * 
@@ -92,6 +96,12 @@ public:
      */
     void shutdown();
 
+    // 新增声明
+    bool checkAudioDeviceAvailability();
+    void initializeAudioPlayers();
+    void loadAudioSettings();
+    void applyVolumeSettings();
+
     // 音量控制属性访问器
     
     /**
@@ -127,13 +137,9 @@ public:
      * 
      * @return float 音效音量（0.0-1.0）
      */
-    float effectVolume() const { return m_effectVolume; }
-    
-    /**
-     * @brief 设置音效音量
-     * 
-     * @param volume 音效音量（0.0-1.0）
-     */
+    float sfxVolume() const { return m_sfxVolume; }
+
+    float effectVolume() const;
     void setEffectVolume(float volume);
     
     /**
@@ -241,40 +247,22 @@ signals:
     /**
      * @brief 主音量改变信号
      */
-    void masterVolumeChanged();
-    
+    void masterVolumeChanged(float volume);
     /**
      * @brief 音乐音量改变信号
      */
-    void musicVolumeChanged();
-    
+    void musicVolumeChanged(float volume);
     /**
      * @brief 音效音量改变信号
      */
-    void effectVolumeChanged();
-    
+    void sfxVolumeChanged(float volume);
+    void effectVolumeChanged(float volume);
     /**
      * @brief 静音状态改变信号
      */
-    void mutedChanged();
-    
-    /**
-     * @brief 当前音乐改变信号
-     */
+    void mutedChanged(bool muted);
     void currentMusicChanged();
-    
-    /**
-     * @brief 音乐播放完成信号
-     * 
-     * @param musicFile 播放完成的音乐文件
-     */
     void musicFinished(const QString &musicFile);
-    
-    /**
-     * @brief 音效播放完成信号
-     * 
-     * @param effectId 播放完成的音效ID
-     */
     void effectFinished(int effectId);
 
 private slots:
@@ -328,14 +316,14 @@ private:
      * 
      * 存储所有活跃的音效播放器，键为音效ID。
      */
-    QHash<int, std::unique_ptr<QSoundEffect>> m_effectPlayers;
+    QHash<int, QSoundEffect*> m_effectPlayers;
     
     /**
      * @brief 预加载的音效缓存
      * 
      * 预加载到内存中的音效文件缓存。
      */
-    QHash<QString, std::unique_ptr<QSoundEffect>> m_preloadedEffects;
+    QHash<QString, QSoundEffect*> m_preloadedEffects;
     
     /**
      * @brief 音效播放队列
@@ -360,10 +348,15 @@ private:
     
     /**
      * @brief 音效音量
-     * 
+     *
      * 音效音量控制（0.0-1.0）。
      */
-    float m_effectVolume;
+    float m_sfxVolume;
+
+    /**
+     * @brief 是否已初始化
+     */
+    bool m_isInitialized;
     
     /**
      * @brief 静音状态

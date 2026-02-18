@@ -2,7 +2,7 @@
  * 文件名: EventSystem.h
  * 说明: 游戏事件系统头文件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  * 
  * 本文件定义了游戏的事件系统，提供解耦的事件通信机制。
  * 
@@ -29,6 +29,7 @@
 #include <QQueue>
 #include <QTimer>
 #include <QMutex>
+#include <QJsonObject>
 #include <functional>
 
 /**
@@ -398,11 +399,53 @@ private:
     mutable QMutex m_queueMutex;                                      ///< 队列互斥锁   
 };
 
-// ==================== 便利宏定义 ====================
+// ==================== 便利内联函数 ====================
 
 /**
- * @brief 发送游戏事件的便利宏
+ * @brief 发送游戏事件的便利函数
+ * @param type 事件类型
  */
+inline void sendGameEvent(GameEvent::Type type) {
+    GameEvent event(type);
+    EventSystem::instance()->sendEvent(event);
+}
+
+/**
+ * @brief 发送带数据的游戏事件
+ * @param type 事件类型
+ * @param data 事件数据
+ */
+inline void sendGameEvent(GameEvent::Type type, const QJsonObject &data) {
+    GameEvent event(type);
+    for (auto it = data.begin(); it != data.end(); ++it) {
+        event.setData(it.key(), it.value().toVariant());
+    }
+    EventSystem::instance()->sendEvent(event);
+}
+
+/**
+ * @brief 发送异步游戏事件的便利函数
+ * @param type 事件类型
+ */
+inline void postGameEvent(GameEvent::Type type) {
+    GameEvent event(type);
+    EventSystem::instance()->postEvent(event);
+}
+
+/**
+ * @brief 发送带数据的异步游戏事件
+ * @param type 事件类型
+ * @param data 事件数据
+ */
+inline void postGameEvent(GameEvent::Type type, const QJsonObject &data) {
+    GameEvent event(type);
+    for (auto it = data.begin(); it != data.end(); ++it) {
+        event.setData(it.key(), it.value().toVariant());
+    }
+    EventSystem::instance()->postEvent(event);
+}
+
+// 保留旧宏以兼容已有代码，但推荐使用上方的内联函数
 #define SEND_EVENT(type, ...) \
     do { \
         GameEvent event(GameEvent::Type::type); \
@@ -410,9 +453,6 @@ private:
         EventSystem::instance()->sendEvent(event); \
     } while(0)
 
-/**
- * @brief 发送异步游戏事件的便利宏
- */
 #define POST_EVENT(type, ...) \
     do { \
         GameEvent event(GameEvent::Type::type); \

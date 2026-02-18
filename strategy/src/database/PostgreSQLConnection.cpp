@@ -2,11 +2,13 @@
  * 文件名: PostgreSQLConnection.cpp
  * 说明: PostgreSQL数据库连接实现
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
+
+#ifdef HAS_PQXX
+
 #include "database/PostgreSQLConnection.h"
 #include <iostream>
-#include <sstream>
 
 namespace strategy {
 
@@ -22,7 +24,7 @@ bool PostgreSQLConnection::Connect() {
     try {
         std::string conn_str = config_.GetConnectionString();
         connection_ = std::make_unique<pqxx::connection>(conn_str);
-        
+
         if (connection_->is_open()) {
             std::cout << "PostgreSQL连接成功: " << config_.database << std::endl;
             return true;
@@ -41,7 +43,7 @@ void PostgreSQLConnection::Disconnect() {
         } catch (...) {}
         transaction_.reset();
     }
-    
+
     if (connection_) {
         try {
             connection_->close();
@@ -56,17 +58,38 @@ bool PostgreSQLConnection::IsConnected() const {
 
 QueryResult PostgreSQLConnection::ExecuteQuery(const std::string& query, const std::vector<std::any>& params) {
     QueryResult result;
-    
+
     if (!IsConnected()) {
         throw std::runtime_error("数据库未连接");
     }
-    
+
     try {
         pqxx::work txn(*connection_);
-        std::string processed_query = ConvertParamsToQuery(query, params);
-        pqxx::result r = txn.exec(processed_query);
+        pqxx::result r;
+
+        if (params.empty()) {
+            r = txn.exec(query);
+        } else {
+            pqxx::params p;
+            for (const auto& param : params) {
+                if (param.type() == typeid(int)) {
+                    p.append(std::any_cast<int>(param));
+                } else if (param.type() == typeid(long long)) {
+                    p.append(std::any_cast<long long>(param));
+                } else if (param.type() == typeid(std::string)) {
+                    p.append(std::any_cast<std::string>(param));
+                } else if (param.type() == typeid(double)) {
+                    p.append(std::any_cast<double>(param));
+                } else if (param.type() == typeid(bool)) {
+                    p.append(std::any_cast<bool>(param));
+                } else {
+                    p.append();
+                }
+            }
+            r = txn.exec_params(query, p);
+        }
         txn.commit();
-        
+
         for (const auto& row : r) {
             std::map<std::string, std::any> row_data;
             for (size_t i = 0; i < row.size(); ++i) {
@@ -79,7 +102,7 @@ QueryResult PostgreSQLConnection::ExecuteQuery(const std::string& query, const s
         std::cerr << "查询执行失败: " << e.what() << std::endl;
         throw;
     }
-    
+
     return result;
 }
 
@@ -87,13 +110,34 @@ int PostgreSQLConnection::ExecuteUpdate(const std::string& query, const std::vec
     if (!IsConnected()) {
         throw std::runtime_error("数据库未连接");
     }
-    
+
     try {
         pqxx::work txn(*connection_);
-        std::string processed_query = ConvertParamsToQuery(query, params);
-        pqxx::result r = txn.exec(processed_query);
+        pqxx::result r;
+
+        if (params.empty()) {
+            r = txn.exec(query);
+        } else {
+            pqxx::params p;
+            for (const auto& param : params) {
+                if (param.type() == typeid(int)) {
+                    p.append(std::any_cast<int>(param));
+                } else if (param.type() == typeid(long long)) {
+                    p.append(std::any_cast<long long>(param));
+                } else if (param.type() == typeid(std::string)) {
+                    p.append(std::any_cast<std::string>(param));
+                } else if (param.type() == typeid(double)) {
+                    p.append(std::any_cast<double>(param));
+                } else if (param.type() == typeid(bool)) {
+                    p.append(std::any_cast<bool>(param));
+                } else {
+                    p.append();
+                }
+            }
+            r = txn.exec_params(query, p);
+        }
         txn.commit();
-        
+
         return static_cast<int>(r.affected_rows());
     } catch (const std::exception& e) {
         std::cerr << "更新执行失败: " << e.what() << std::endl;
@@ -105,7 +149,7 @@ bool PostgreSQLConnection::BeginTransaction() {
     if (!IsConnected()) {
         return false;
     }
-    
+
     try {
         if (transaction_) {
             transaction_->abort();
@@ -122,7 +166,7 @@ bool PostgreSQLConnection::CommitTransaction() {
     if (!transaction_) {
         return false;
     }
-    
+
     try {
         transaction_->commit();
         transaction_.reset();
@@ -137,7 +181,7 @@ bool PostgreSQLConnection::RollbackTransaction() {
     if (!transaction_) {
         return false;
     }
-    
+
     try {
         transaction_->abort();
         transaction_.reset();
@@ -153,7 +197,7 @@ long long PostgreSQLConnection::GetLastInsertId() {
         pqxx::work txn(*connection_);
         pqxx::result r = txn.exec("SELECT lastval()");
         txn.commit();
-        
+
         if (!r.empty()) {
             return r[0][0].as<long long>();
         }
@@ -163,57 +207,24 @@ long long PostgreSQLConnection::GetLastInsertId() {
     return -1;
 }
 
-std::string PostgreSQLConnection::ConvertParamsToQuery(const std::string& query, const std::vector<std::any>& params) {
-    std::string result = query;
-    
-    for (size_t i = 0; i < params.size(); ++i) {
-        std::string placeholder = "$" + std::to_string(i + 1);
-        std::string value;
-        
-        try {
-            // 尝试转换不同类型的参数
-            if (params[i].type() == typeid(int)) {
-                value = std::to_string(std::any_cast<int>(params[i]));
-            } else if (params[i].type() == typeid(long long)) {
-                value = std::to_string(std::any_cast<long long>(params[i]));
-            } else if (params[i].type() == typeid(std::string)) {
-                value = "'" + std::any_cast<std::string>(params[i]) + "'";
-            } else {
-                value = "NULL";
-            }
-        } catch (const std::bad_any_cast& e) {
-            value = "NULL";
-        }
-        
-        size_t pos = result.find(placeholder);
-        if (pos != std::string::npos) {
-            result.replace(pos, placeholder.length(), value);
-        }
-    }
-    
-    return result;
-}
-
 std::any PostgreSQLConnection::ConvertPqxxField(const pqxx::field& field) {
     if (field.is_null()) {
         return std::any{};
     }
-    
-    // 根据字段类型转换
+
     std::string value = field.as<std::string>();
-    
-    // 这里简化处理，实际应该根据PostgreSQL的类型进行转换
+
     try {
-        // 尝试转换为数字
         if (value.find('.') != std::string::npos) {
             return std::stod(value);
         } else {
             return std::stoll(value);
         }
     } catch (...) {
-        // 如果不是数字，返回字符串
         return value;
     }
 }
 
 } // namespace strategy
+
+#endif // HAS_PQXX

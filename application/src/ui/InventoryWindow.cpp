@@ -264,7 +264,6 @@ void InventoryWindow::updateSlotDisplay(int slotIndex)
         );
     } else {
         // 有物品的槽位
-        int itemId = slotInfo["itemId"].toInt();
         int quantity = slotInfo["quantity"].toInt();
         QString itemName = slotInfo["name"].toString();
         
@@ -283,8 +282,9 @@ void InventoryWindow::updateSlotDisplay(int slotIndex)
             "}"
         );
         
-        // TODO: 设置物品图标
-        // button->setIcon(QIcon(iconPath));
+        // 设置物品图标
+        QString itemType = slotInfo["type"].toString();
+        button->setText(InventoryWindow::getItemTypeIcon(itemType) + " " + QString::number(quantity));
     }
 }
 
@@ -326,9 +326,19 @@ void InventoryWindow::updateItemDetail(int slotIndex)
     ).arg(quantity).arg(quality).arg(type);
     
     m_itemPropertiesLabel->setText(properties);
-    
-    // TODO: 设置物品图标
-    m_itemIconLabel->setText("📦");
+
+    // 设置物品图标
+    QString itemType = slotInfo["type"].toString();
+    m_itemIconLabel->setText(InventoryWindow::getItemTypeIcon(itemType));
+    m_itemIconLabel->setStyleSheet("border: 1px solid #ccc; background-color: #f0f0f0; font-size: 36px;");
+
+    // 根据品质设置名称颜色
+    static const QHash<QString, QString> qualityColors = {
+        {"common", "#ffffff"}, {"uncommon", "#2ecc71"}, {"rare", "#3498db"},
+        {"epic", "#9b59b6"}, {"legendary", "#f39c12"}
+    };
+    QString qualityColor = qualityColors.value(quality.toLower(), "#ffffff");
+    m_itemNameLabel->setStyleSheet(QString("font-size: 14px; font-weight: bold; color: %1;").arg(qualityColor));
 }
 
 void InventoryWindow::onSlotClicked()
@@ -345,9 +355,20 @@ void InventoryWindow::onSlotClicked()
     }
     
     m_selectedSlot = slotIndex;
-    
+
     // 设置选中样式
-    button->setStyleSheet(button->styleSheet() + "border-color: #ff6600; border-width: 3px;");
+    button->setStyleSheet(
+        "QPushButton {"
+        "    border: 3px solid #ff6600;"
+        "    background-color: #e8f4f8;"
+        "    border-radius: 4px;"
+        "    font-weight: bold;"
+        "}"
+        "QPushButton:hover {"
+        "    border-color: #ff8800;"
+        "    background-color: #d0e8f0;"
+        "}"
+    );
     
     // 更新详情显示
     updateItemDetail(slotIndex);
@@ -383,5 +404,18 @@ void InventoryWindow::clearInventory()
         updateItemDetail(-1);
         qDebug() << "InventoryWindow: 背包已清空";
     }
+}
+
+QString InventoryWindow::getItemTypeIcon(const QString &type)
+{
+    static const QHash<QString, QString> iconMap = {
+        {"weapon", QString::fromUtf8("[剑]")},
+        {"armor", QString::fromUtf8("[盾]")},
+        {"consumable", QString::fromUtf8("[药]")},
+        {"material", QString::fromUtf8("[材]")},
+        {"quest", QString::fromUtf8("[卷]")},
+        {"misc", QString::fromUtf8("[包]")}
+    };
+    return iconMap.value(type.toLower(), QString::fromUtf8("[?]"));
 }
 

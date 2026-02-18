@@ -2,7 +2,7 @@
  * 文件名: GameEngine.cpp
  * 说明: 游戏引擎核心类的具体实现。
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本文件实现GameEngine类的所有方法，作为游戏的核心控制器，
  * 协调各个子系统的工作，管理游戏状态和循环。
@@ -185,12 +185,48 @@ bool GameEngine::startNewGame(const QString &playerName, const QString &professi
 bool GameEngine::loadGame(int slotIndex)
 {
     try {
-        // TODO: 实现存档加载逻辑
-        Q_UNUSED(slotIndex)
-        
-        qDebug() << "GameEngine: 游戏加载完成";
+        if (slotIndex < 0 || slotIndex >= 10) {
+            qWarning() << "GameEngine: 无效的存档槽位:" << slotIndex;
+            return false;
+        }
+
+        QString savePath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                          + QString("/saves/save_%1.json").arg(slotIndex);
+        QFile file(savePath);
+        if (!file.exists()) {
+            qWarning() << "GameEngine: 存档文件不存在:" << savePath;
+            return false;
+        }
+
+        if (!file.open(QIODevice::ReadOnly)) {
+            qWarning() << "GameEngine: 无法打开存档文件:" << savePath;
+            return false;
+        }
+
+        QJsonParseError parseError;
+        QJsonDocument doc = QJsonDocument::fromJson(file.readAll(), &parseError);
+        file.close();
+
+        if (parseError.error != QJsonParseError::NoError) {
+            qWarning() << "GameEngine: 存档文件解析失败:" << parseError.errorString();
+            return false;
+        }
+
+        QJsonObject saveData = doc.object();
+
+        // 恢复游戏状态
+        if (m_gameState) {
+            m_gameState->loadFromJson(saveData["gameState"].toObject());
+        }
+        if (m_player) {
+            m_player->loadFromJson(saveData["player"].toObject());
+        }
+
+        changeState(GameEngineState::Playing);
+        emit gameLoaded(slotIndex, true);
+        qDebug() << "GameEngine: 游戏加载完成，槽位:" << slotIndex;
         return true;
-        
+
     } catch (const std::exception& e) {
         qCritical() << "GameEngine: 加载游戏异常:" << e.what();
         return false;
@@ -200,12 +236,45 @@ bool GameEngine::loadGame(int slotIndex)
 bool GameEngine::saveGame(int slotIndex)
 {
     try {
-        // TODO: 实现存档保存逻辑
-        Q_UNUSED(slotIndex)
-        
-        qDebug() << "GameEngine: 游戏保存完成";
+        if (slotIndex < 0 || slotIndex >= 10) {
+            qWarning() << "GameEngine: 无效的存档槽位:" << slotIndex;
+            return false;
+        }
+
+        // 确保存档目录存在
+        QString saveDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/saves";
+        QDir().mkpath(saveDir);
+
+        QString savePath = saveDir + QString("/save_%1.json").arg(slotIndex);
+
+        // 构建存档数据
+        QJsonObject saveData;
+        saveData["version"] = 1;
+        saveData["timestamp"] = QDateTime::currentDateTime().toString(Qt::ISODate);
+        saveData["slotIndex"] = slotIndex;
+
+        if (m_gameState) {
+            saveData["gameState"] = m_gameState->toJson();
+        }
+        if (m_player) {
+            saveData["player"] = m_player->toJson();
+        }
+
+        // 写入文件
+        QJsonDocument doc(saveData);
+        QFile file(savePath);
+        if (!file.open(QIODevice::WriteOnly)) {
+            qWarning() << "GameEngine: 无法写入存档文件:" << savePath;
+            return false;
+        }
+
+        file.write(doc.toJson());
+        file.close();
+
+        emit gameSaved(slotIndex, true);
+        qDebug() << "GameEngine: 游戏保存完成，槽位:" << slotIndex;
         return true;
-        
+
     } catch (const std::exception& e) {
         qCritical() << "GameEngine: 保存游戏异常:" << e.what();
         return false;
@@ -306,6 +375,38 @@ QJsonObject GameEngine::getGameStats() const
     }
     
     return stats;
+}
+
+void GameEngine::resetSettings()
+{
+    qDebug() << "GameEngine: 重置游戏设置";
+
+    m_gameConfig = QJsonObject();
+    loadGameConfig();
+
+    if (m_audioManager) {
+        m_audioManager->setMasterVolume(1.0f);
+        m_audioManager->setMusicVolume(0.8f);
+        m_audioManager->setSFXVolume(1.0f);
+        m_audioManager->setMuted(false);
+    }
+}
+
+void GameEngine::exitToMainMenu()
+{
+    qDebug() << "GameEngine: 退出到主菜单";
+
+    if (m_currentState == GameEngineState::Playing ||
+        m_currentState == GameEngineState::Battle ||
+        m_currentState == GameEngineState::Paused) {
+        saveGameConfig();
+
+        if (m_sceneManager) {
+            m_sceneManager->loadScene("main_menu");
+        }
+
+        changeState(GameEngineState::MainMenu);
+    }
 }
 
 void GameEngine::forceGarbageCollection()

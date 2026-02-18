@@ -4,7 +4,7 @@
 // 文件名: PlayerInfo.qml
 // 说明: 显示玩家基本信息的UI组件，包括头像、等级、生命值、魔法值等
 // 作者: 彭承康
-// 创建时间: 2025-07-20
+// 创建时间: 2026-02-18
 // 版本: v1.0.0
 //
 // 功能描述:
@@ -23,7 +23,7 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
 import QtQuick.Layouts 1.15
-import QtGraphicalEffects 1.15
+// QtGraphicalEffects removed - using native styling instead
 
 /**
  * @brief 玩家信息面板组件
@@ -88,15 +88,8 @@ Rectangle {
                     source: "qrc:/resources/images/player.png"
                     fillMode: Image.PreserveAspectCrop
                     
-                    // 圆形裁剪
-                    layer.enabled: true
-                    layer.effect: OpacityMask {
-                        maskSource: Rectangle {
-                            width: avatarImage.width
-                            height: avatarImage.height
-                            radius: width / 2
-                        }
-                    }
+                    // 圆形裁剪（使用clip代替OpacityMask）
+                    layer.enabled: false
                     
                     // 加载失败时显示默认图标
                     onStatusChanged: {

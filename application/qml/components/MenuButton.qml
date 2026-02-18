@@ -2,12 +2,12 @@
  * 文件名: MenuButton.qml
  * 说明: 主菜单按钮组件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import QtGraphicalEffects 1.15
+// QtGraphicalEffects removed - using native styling instead
 
 /**
  * @brief 主菜单按钮组件
@@ -33,7 +33,7 @@ Button {
         id: buttonBackground
         color: menuButton.pressed ? pressedColor : 
                (menuButton.hovered ? hoverColor : normalColor)
-        border.color: borderColor
+        border.color: menuButton.hovered ? "#888888" : borderColor
         border.width: 2
         radius: 8
         
@@ -57,15 +57,6 @@ Button {
             }
         }
         
-        // 发光效果
-        layer.enabled: menuButton.hovered
-        layer.effect: DropShadow {
-            horizontalOffset: 0
-            verticalOffset: 0
-            radius: 15
-            samples: 31
-            color: "#40FFFFFF"
-        }
     }
     
     // 按钮内容
@@ -82,13 +73,7 @@ Button {
             visible: iconSource !== ""
             anchors.verticalCenter: parent.verticalCenter
             
-            // 图标着色
-            ColorOverlay {
-                anchors.fill: buttonIcon
-                source: buttonIcon
-                color: textColor
-                visible: buttonIcon.visible
-            }
+            // 图标（直接显示，无着色覆盖）
         }
         
         // 文字

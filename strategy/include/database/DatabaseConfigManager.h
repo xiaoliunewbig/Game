@@ -2,7 +2,7 @@
  * 文件名: DatabaseConfigManager.h
  * 说明: 数据库配置管理器，负责解析JSON配置
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 #ifndef STRATEGY_DATABASE_DATABASECONFIGMANAGER_H
 #define STRATEGY_DATABASE_DATABASECONFIGMANAGER_H

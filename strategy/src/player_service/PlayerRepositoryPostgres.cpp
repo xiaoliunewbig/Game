@@ -4,6 +4,9 @@
  * 作者: 彭承康
  * 创建时间: 2025-07-13
  */
+
+#ifdef HAS_PQXX
+
 #include "player_service/PlayerRepositoryPostgres.h"
 #include <stdexcept>
 #include <iostream>
@@ -136,4 +139,6 @@ Player PlayerRepositoryPostgres::RowToPlayer(const pqxx::row& row) {
     return player;
 }
 
-} // namespace strategy 
+} // namespace strategy
+
+#endif // HAS_PQXX

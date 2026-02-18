@@ -2,7 +2,7 @@
  * 文件名: DatabaseException.h
  * 说明: 数据库操作异常类定义，提供统一的错误处理机制
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 #ifndef STRATEGY_DATABASE_DATABASEEXCEPTION_H
 #define STRATEGY_DATABASE_DATABASEEXCEPTION_H

@@ -8,7 +8,10 @@
 #define STRATEGY_PLAYER_SERVICE_PLAYERSERVICEFACTORY_H
 
 #include "player_service/PlayerService.h"
+#include "player_service/PlayerRepositoryDatabase.h"
+#ifdef HAS_PQXX
 #include "player_service/PlayerRepositoryPostgres.h"
+#endif
 #include <memory>
 #include <string>
 
@@ -17,7 +20,7 @@ namespace strategy {
 class PlayerServiceFactory {
 public:
     /**
-     * @brief 创建基于PostgreSQL的玩家服务（兼容性接口）
+     * @brief 创建基于PostgreSQL的玩家服务（兼容性接口，需要HAS_PQXX）
      */
     static std::unique_ptr<PlayerService> CreatePostgresPlayerService(const std::string& connection_string);
     

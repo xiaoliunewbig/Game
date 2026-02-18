@@ -8,13 +8,19 @@
 #include "player_service/PlayerRepositoryDatabase.h"
 #include "database/DatabaseFactory.h"
 #include "database/DatabaseConfigManager.h"
+#include <stdexcept>
 
 namespace strategy {
 
 std::unique_ptr<PlayerService> PlayerServiceFactory::CreatePostgresPlayerService(const std::string& connection_string) {
+#ifdef HAS_PQXX
     // 为了兼容性保留旧接口
     auto repository = std::make_unique<PlayerRepositoryPostgres>(connection_string);
     return std::make_unique<PlayerService>(std::move(repository));
+#else
+    (void)connection_string;
+    throw std::runtime_error("PostgreSQL支持未启用（需要编译时定义HAS_PQXX）");
+#endif
 }
 
 std::unique_ptr<PlayerService> PlayerServiceFactory::CreatePlayerService(std::unique_ptr<IPlayerRepository> repository) {

@@ -2,7 +2,7 @@
  * 文件名: MainMenu.qml
  * 说明: 游戏主菜单界面
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 import QtQuick 2.15
@@ -65,15 +65,9 @@ Rectangle {
             color: "#FFD700"
             Layout.alignment: Qt.AlignHCenter
             
-            // 发光效果
-            layer.enabled: true
-            layer.effect: DropShadow {
-                horizontalOffset: 0
-                verticalOffset: 0
-                radius: 20
-                samples: 41
-                color: "#80FFD700"
-            }
+            // 文字阴影效果（简化版）
+            style: Text.Outline
+            styleColor: "#80FFD700"
         }
         
         // 副标题
@@ -180,7 +174,8 @@ Rectangle {
             // 角色名称输入
             ColumnLayout {
                 spacing: 10
-                
+                Layout.fillWidth: true
+
                 Text {
                     text: "角色名称："
                     color: "#FFFFFF"
@@ -206,7 +201,8 @@ Rectangle {
             // 职业选择
             ColumnLayout {
                 spacing: 15
-                
+                Layout.fillWidth: true
+
                 Text {
                     text: "选择职业："
                     color: "#FFFFFF"
@@ -312,7 +308,7 @@ Rectangle {
                         width: saveListView.width
                         slotIndex: index
                         
-                        onLoadRequested: {
+                        onLoadRequested: function(slotIndex) {
                             mainMenu.loadGameClicked(slotIndex)
                             loadGameDialog.close()
                         }

@@ -324,13 +324,13 @@ signals:
      */
     void inventoryFull();
 
-        /**
-     * @brief 物品使用信号
+    /**
+     * @brief 物品使用结果信号
      * @param itemId 物品ID
      * @param quantity 使用数量
      * @param success 是否使用成功
      */
-    void itemUsed(int itemId, int quantity, bool success);  
+    void itemUseResult(int itemId, int quantity, bool success);  
 
 private:
     /**
@@ -369,6 +369,13 @@ private:
      * @brief 加载默认物品数据
      */
     void loadDefaultItemData();
+
+    /**
+     * @brief 应用物品使用效果
+     * @param itemData 物品数据
+     * @return bool 效果是否成功应用
+     */
+    bool applyItemEffect(const ItemData &itemData);
 
 private:
     /**

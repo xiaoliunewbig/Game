@@ -2,7 +2,7 @@
  * 文件名: PerformanceMonitor.cpp
  * 说明: 性能监控服务实现
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  */
 
 #include "monitor/PerformanceMonitor.h"
@@ -16,6 +16,10 @@
 #include <sys/resource.h>
 #include <unistd.h>
 #include <fstream>
+#include <thread>
+#elif defined(_WIN32)
+#include <windows.h>
+#include <psapi.h>
 #include <thread>
 #endif
 
@@ -187,6 +191,39 @@ SystemResourceInfo PerformanceMonitor::GetSystemResourceInfo() const {
 
     // 获取线程数
     info.active_threads = std::thread::hardware_concurrency();
+
+#elif defined(_WIN32)
+    // 获取内存信息
+    MEMORYSTATUSEX mem_status;
+    mem_status.dwLength = sizeof(mem_status);
+    if (GlobalMemoryStatusEx(&mem_status)) {
+        info.memory_total_mb = static_cast<size_t>(mem_status.ullTotalPhys / (1024 * 1024));
+        info.memory_used_mb = static_cast<size_t>(
+            (mem_status.ullTotalPhys - mem_status.ullAvailPhys) / (1024 * 1024));
+        info.memory_usage = static_cast<double>(mem_status.dwMemoryLoad);
+    }
+
+    // 获取CPU使用率（简化实现：两次采样间隔计算）
+    FILETIME idle_time1, kernel_time1, user_time1;
+    FILETIME idle_time2, kernel_time2, user_time2;
+    if (GetSystemTimes(&idle_time1, &kernel_time1, &user_time1)) {
+        Sleep(100);  // 100ms 采样间隔
+        if (GetSystemTimes(&idle_time2, &kernel_time2, &user_time2)) {
+            auto to_ull = [](const FILETIME& ft) -> ULONGLONG {
+                return (static_cast<ULONGLONG>(ft.dwHighDateTime) << 32) | ft.dwLowDateTime;
+            };
+            ULONGLONG idle_diff = to_ull(idle_time2) - to_ull(idle_time1);
+            ULONGLONG kernel_diff = to_ull(kernel_time2) - to_ull(kernel_time1);
+            ULONGLONG user_diff = to_ull(user_time2) - to_ull(user_time1);
+            ULONGLONG total = kernel_diff + user_diff;
+            if (total > 0) {
+                info.cpu_usage = (1.0 - static_cast<double>(idle_diff) / total) * 100.0;
+            }
+        }
+    }
+
+    // 获取线程数
+    info.active_threads = std::thread::hardware_concurrency();
 #endif
 
     return info;
@@ -217,8 +254,8 @@ void PerformanceMonitor::UpdateStats(PerformanceStats& stats, double duration_ms
         stats.min_time = duration_ms;
         stats.max_time = duration_ms;
     } else {
-        stats.min_time = std::min(stats.min_time, duration_ms);
-        stats.max_time = std::max(stats.max_time, duration_ms);
+        stats.min_time = (std::min)(stats.min_time, duration_ms);
+        stats.max_time = (std::max)(stats.max_time, duration_ms);
     }
 }
 

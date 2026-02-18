@@ -2,7 +2,7 @@
  * 文件名: MySQLConnection.h
  * 说明: MySQL数据库连接实现，基于MySQL C++ Connector
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本类实现MySQL数据库的连接和操作功能，包括：
  * 1. MySQL服务器连接管理

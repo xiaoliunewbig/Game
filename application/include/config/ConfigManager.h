@@ -2,7 +2,7 @@
  * 文件名: ConfigManager.h
  * 说明: 配置管理器头文件
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  * 
  * 本文件定义了游戏配置管理系统，负责游戏设置的加载、保存和管理。
  * 
@@ -28,6 +28,8 @@
 #include <QVariant>
 #include <QSize>
 #include <QStringList>
+#include <QMutex>
+#include <QTimer>
 
 /**
  * @brief 配置管理器类
@@ -345,12 +347,22 @@ private:
      * @param value 新值
      */
     void emitConfigChanged(const QString &key, const QVariant &value);
+    void setupAutoSave();
+    bool validateConfiguration();
+    bool validateValue(const QString &key, const QVariant &value) const;
+    void createDefaultConfig();
 
 private:
     static ConfigManager* s_instance;  ///< 单例实例
     QSettings* m_settings;             ///< Qt设置对象
     QString m_configFilePath;          ///< 配置文件路径
     QMap<QString, QVariant> m_defaults; ///< 默认配置值
+    static QMutex s_mutex;              ///< 静态互斥锁
+    mutable QMutex m_mutex;             ///< 实例互斥锁
+    QTimer* m_autoSaveTimer;            ///< 自动保存定时器
+    bool m_autoSaveEnabled;             ///< 是否启用自动保存
+    int m_autoSaveInterval;             ///< 自动保存间隔(ms)
+    bool m_needsSave;                   ///< 是否有待保存的变更
 };
 
 #endif // CONFIGMANAGER_H

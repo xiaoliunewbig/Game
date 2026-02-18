@@ -2,7 +2,7 @@
  * 文件名: GameApplication.h
  * 说明: 游戏应用程序主类，负责整个应用的生命周期管理。
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本类作为游戏应用的入口点和协调中心，负责初始化各个子系统，
  * 管理QML引擎，协调游戏引擎、网络管理器、音频管理器等核心组件。
@@ -13,6 +13,7 @@
 #include <QObject>
 #include <QQmlApplicationEngine>
 #include <memory>
+#include "core/SceneManager.h"
 
 // 前向声明核心组件
 class GameEngine;

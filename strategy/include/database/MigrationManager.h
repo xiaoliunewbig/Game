@@ -2,7 +2,7 @@
  * 文件名: MigrationManager.h
  * 说明: 数据库迁移管理器，负责数据库版本控制和结构变更管理
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本类提供数据库迁移功能，包括：
  * 1. 自动执行数据库结构升级
@@ -21,6 +21,7 @@
 #define STRATEGY_DATABASE_MIGRATIONMANAGER_H
 
 #include "IDatabaseConnection.h"
+#include "DatabaseConfig.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -58,9 +59,11 @@ public:
     /**
      * @brief 构造函数
      * @param connection 数据库连接对象，必须已连接且有效
+     * @param db_type 数据库类型，用于生成对应的DDL
      * @throws std::invalid_argument 如果连接为空或未连接
      */
-    explicit MigrationManager(std::shared_ptr<IDatabaseConnection> connection);
+    explicit MigrationManager(std::shared_ptr<IDatabaseConnection> connection,
+                              DatabaseType db_type = DatabaseType::SQLITE);
     
     /**
      * @brief 执行所有待处理的数据库迁移
@@ -105,17 +108,28 @@ public:
 private:
     std::shared_ptr<IDatabaseConnection> connection_;  ///< 数据库连接对象
     std::vector<Migration> migrations_;                ///< 所有可用的迁移脚本列表
-    
+    DatabaseType db_type_;                             ///< 数据库类型
+
     /**
      * @brief 从配置文件或代码中加载迁移脚本
-     * 
+     *
      * 初始化 migrations_ 向量，包含所有定义的迁移脚本。
      * 迁移脚本可以从文件系统、嵌入资源或硬编码中加载。
-     * 
+     *
      * @note 迁移脚本必须按版本号排序
      * @note 版本号必须连续且唯一
      */
     void LoadMigrations();
+
+    /**
+     * @brief 加载SQLite兼容的迁移脚本
+     */
+    void LoadSQLiteMigrations();
+
+    /**
+     * @brief 加载PostgreSQL兼容的迁移脚本
+     */
+    void LoadPostgreSQLMigrations();
     
     /**
      * @brief 创建迁移历史表

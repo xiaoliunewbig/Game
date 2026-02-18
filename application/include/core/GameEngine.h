@@ -2,7 +2,7 @@
  * 文件名: GameEngine.h
  * 说明: 游戏引擎核心类，负责游戏逻辑的统一管理和协调。
  * 作者: 彭承康
- * 创建时间: 2025-07-20
+ * 创建时间: 2026-02-18
  *
  * 本类是游戏的核心引擎，负责协调各个子系统的工作，
  * 管理游戏状态，处理游戏循环，以及与后端服务的通信。
@@ -14,6 +14,7 @@
 #include <QTimer>
 #include <QJsonObject>
 #include <memory>
+#include "game/InventorySystem.h"
 
 // 前向声明
 class SceneManager;
@@ -23,8 +24,6 @@ class AudioManager;
 class GameState;
 class Player;
 class BattleSystem;
-class InventorySystem;
-
 /**
  * @brief 游戏状态枚举
  * 
@@ -107,8 +106,8 @@ public:
      * @brief 获取背包系统实例
      * @return 背包系统指针，供QML访问
      */
-    Game::InventorySystem* getInventorySystem() const { 
-        return m_inventorySystem.get();  // 使用unique_ptr的get()方法返回原始指针
+    Game::InventorySystem* getInventorySystem() const {
+        return m_inventorySystem.get();
     }
     
     /**
@@ -173,41 +172,41 @@ public:
      * @param profession 玩家职业
      * @return bool 是否成功开始新游戏
      */
-    bool startNewGame(const QString &playerName, const QString &profession);
-    
+    Q_INVOKABLE bool startNewGame(const QString &playerName, const QString &profession);
+
     /**
      * @brief 加载游戏存档
-     * 
+     *
      * 从指定存档槽位加载游戏数据。
-     * 
+     *
      * @param saveSlot 存档槽位索引
      * @return bool 是否成功加载游戏
      */
-    bool loadGame(int saveSlot);
-    
+    Q_INVOKABLE bool loadGame(int saveSlot);
+
     /**
      * @brief 保存游戏
-     * 
+     *
      * 将当前游戏状态保存到指定槽位。
-     * 
+     *
      * @param saveSlot 存档槽位索引
      * @return bool 是否成功保存游戏
      */
-    bool saveGame(int saveSlot);
-    
+    Q_INVOKABLE bool saveGame(int saveSlot);
+
     /**
      * @brief 暂停游戏
-     * 
+     *
      * 暂停游戏循环和逻辑更新。
      */
-    void pauseGame();
-    
+    Q_INVOKABLE void pauseGame();
+
     /**
      * @brief 恢复游戏
-     * 
+     *
      * 恢复游戏循环和逻辑更新。
      */
-    void resumeGame();
+    Q_INVOKABLE void resumeGame();
 
     // QML可调用的游戏操作接口
     
@@ -451,7 +450,7 @@ private:
      * 
      * 处理物品和背包逻辑的系统。
      */
-     std::unique_ptr<Game::InventorySystem> m_inventorySystem;
+    std::unique_ptr<Game::InventorySystem> m_inventorySystem;
     
     /**
      * @brief 当前游戏状态
