@@ -425,7 +425,7 @@ Game/
 - [x] PerformanceMonitor（性能监控，支持Windows/Linux）
 - [x] StrategyLogger（日志系统，支持Windows/Linux）
 
-### Qt Application — 约85%完成
+### Qt Application — 约90%完成
 - [x] GameEngine（游戏引擎核心）
 - [x] GameApplication（应用生命周期管理）
 - [x] SceneManager（场景管理与转场）
@@ -450,7 +450,8 @@ Game/
 - [x] GameplayWindow（游戏玩法界面）
 - [x] InventoryWindow（背包界面）
 - [x] QML前端（主菜单、战斗、背包、设置等视图）
-- [ ] 完整的QML与C++绑定调试
+- [x] QML-C++数据绑定（Player、GameState、BattleSystem上下文属性）
+- [ ] 完整的QML与C++绑定联调测试
 - [ ] 多人联机功能
 
 ### Proto 定义 — 100%完成
@@ -491,7 +492,15 @@ cd build/windows-debug && ctest --verbose
 
 ## 版本历史
 
-### v0.2.0 (当前)
+### v0.3.0 (当前)
+- QML-C++数据绑定：Player、GameState、BattleSystem通过上下文属性暴露给QML
+- PlayerInfoPanel绑定Player属性（名称、等级、HP/MP、攻防速运）
+- GameStatePanel绑定GameState属性（当前场景、金币）
+- 新增startNewGameWithId()支持QML传递职业索引（int→QString转换）
+- startNewGame()完善：初始化玩家职业、游戏状态（场景设为"新手村"）
+- main.qml新增gameSaved/gameLoaded信号处理，保存结果动态提示
+
+### v0.2.0
 - 构建系统 Windows/MSVC 适配（CMakePresets, find_package + vcpkg）
 - 补全 AlgorithmService.proto 和 StrategyService.proto
 - 完善应用层所有核心模块实现
@@ -506,6 +515,7 @@ cd build/windows-debug && ctest --verbose
 - Qt Application UI 开发
 
 ### 计划功能
+- [ ] 完整QML-C++绑定联调测试
 - [ ] 完整战斗系统联调
 - [ ] 剧情系统实现
 - [ ] 多人联机支持

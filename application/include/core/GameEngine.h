@@ -109,6 +109,24 @@ public:
     Game::InventorySystem* getInventorySystem() const {
         return m_inventorySystem.get();
     }
+
+    /**
+     * @brief 获取玩家对象
+     * @return 玩家对象指针，供QML访问
+     */
+    Player* getPlayer() const { return m_player.get(); }
+
+    /**
+     * @brief 获取游戏状态对象
+     * @return 游戏状态指针，供QML访问
+     */
+    GameState* getGameState() const { return m_gameState.get(); }
+
+    /**
+     * @brief 获取战斗系统实例
+     * @return 战斗系统指针，供QML访问
+     */
+    BattleSystem* getBattleSystem() const { return m_battleSystem.get(); }
     
     /**
      * @brief 启动游戏引擎
@@ -173,6 +191,17 @@ public:
      * @return bool 是否成功开始新游戏
      */
     Q_INVOKABLE bool startNewGame(const QString &playerName, const QString &profession);
+
+    /**
+     * @brief 开始新游戏（通过职业ID）
+     *
+     * QML传递职业索引（int），此方法转换为字符串后委托给startNewGame。
+     *
+     * @param playerName 玩家角色名称
+     * @param professionId 职业ID（0=战士, 1=法师, 2=弓箭手）
+     * @return bool 是否成功开始新游戏
+     */
+    Q_INVOKABLE bool startNewGameWithId(const QString &playerName, int professionId);
 
     /**
      * @brief 加载游戏存档

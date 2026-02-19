@@ -27,19 +27,19 @@ Rectangle {
     border.width: 1
     radius: 8
     
-    // 模拟玩家数据（实际应从Player对象获取）
-    property string playerName: "测试玩家"
-    property int playerLevel: 15
-    property int currentExp: 1250
-    property int maxExp: 1500
-    property int currentHealth: 180
-    property int maxHealth: 200
-    property int currentMana: 85
-    property int maxMana: 120
-    property int attack: 45
-    property int defense: 32
-    property int speed: 28
-    property int luck: 15
+    // 玩家数据绑定（从Player C++对象获取）
+    property string playerName: player ? player.name : "未知"
+    property int playerLevel: player ? player.level : 1
+    property int currentExp: player ? player.experience : 0
+    property int maxExp: player ? player.experienceToNext : 100
+    property int currentHealth: player ? player.health : 0
+    property int maxHealth: player ? player.maxHealth : 100
+    property int currentMana: player ? player.mana : 0
+    property int maxMana: player ? player.maxMana : 50
+    property int attack: player ? player.attack : 0
+    property int defense: player ? player.defense : 0
+    property int speed: player ? player.speed : 0
+    property int luck: player ? player.luck : 0
     
     ColumnLayout {
         anchors.fill: parent

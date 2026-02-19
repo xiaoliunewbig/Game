@@ -26,13 +26,14 @@ Rectangle {
     border.width: 1
     radius: 8
     
-    // 模拟游戏状态数据
+    // 游戏状态数据绑定（从GameState C++对象获取）
     property int currentChapter: 1
-    property string currentScene: "新手村"
-    property string gameTime: "02:15:30"
+    property string currentScene: gameState ? gameState.currentScene : "未知"
+    property string gameTime: "00:00:00"
     property int activeQuests: 3
     property int completedQuests: 7
     property bool inCombat: false
+    property int playerGold: gameState ? gameState.playerGold : 0
     
     ColumnLayout {
         anchors.fill: parent
