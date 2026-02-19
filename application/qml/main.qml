@@ -73,8 +73,8 @@ ApplicationWindow {
                 onNewGameClicked: function(playerName, profession) {
                     // 切换到游戏界面
                     stackView.push(gameplayComponent)
-                    // 通知游戏引擎开始新游戏
-                    gameEngine.startNewGame(playerName, profession)
+                    // 通知游戏引擎开始新游戏（profession是int）
+                    gameEngine.startNewGameWithId(playerName, profession)
                 }
 
                 /**
@@ -118,7 +118,6 @@ ApplicationWindow {
                 }
                 onSaveRequested: {
                     gameEngine.saveGame(0)
-                    saveMsg.open()
                 }
             }
         }
@@ -173,6 +172,18 @@ ApplicationWindow {
         function onErrorOccurred(error) {
             errorDialog.text = error
             errorDialog.open()
+        }
+
+        function onGameSaved(saveSlot, success) {
+            saveMsg.text = success ? "游戏已保存！" : "保存失败！"
+            saveMsg.open()
+        }
+
+        function onGameLoaded(saveSlot, success) {
+            if (!success) {
+                errorDialog.text = "加载存档失败"
+                errorDialog.open()
+            }
         }
     }
 
@@ -251,7 +262,10 @@ ApplicationWindow {
         anchors.centerIn: parent
         modal: true
 
+        property alias text: saveMsgText.text
+
         Text {
+            id: saveMsgText
             text: "游戏已保存！"
             color: "#333333"
             font.pixelSize: 14

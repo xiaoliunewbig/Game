@@ -146,40 +146,53 @@ bool GameEngine::startNewGame(const QString &playerName, const QString &professi
         qWarning() << "GameEngine: 引擎未初始化";
         return false;
     }
-    
+
     try {
         qDebug() << "GameEngine: 开始新游戏 - 玩家:" << playerName << "职业:" << profession;
-        
-        // 初始化游戏状态
-        if (m_gameState) {
-            // m_gameState->initializeNewGame(); // 暂时注释掉不存在的方法
-        }
-        
-        // 初始化背包系统
-        if (m_inventorySystem) {
-            // m_inventorySystem->initializeNewGame(); // 暂时注释掉不存在的方法
-        }
-        
+
         // 初始化玩家
         if (m_player) {
             m_player->setName(playerName);
-            // 设置职业的逻辑需要根据实际的Player类实现
+            m_player->setProfession(profession);
+            m_player->initializeNewPlayer();
         }
-        
+
+        // 初始化游戏状态
+        if (m_gameState) {
+            m_gameState->setPlayerName(playerName);
+            m_gameState->setCurrentScene("新手村");
+            m_gameState->setPlayerLevel(1);
+            m_gameState->setPlayerGold(0);
+            m_gameState->setPlayerExperience(0);
+        }
+
         // 切换到游戏场景
         if (m_sceneManager) {
             m_sceneManager->loadScene("gameplay");
         }
-        
+
         changeState(GameEngineState::Playing);
-        
+        emit newGameStarted(playerName, profession);
+
         qDebug() << "GameEngine: 新游戏启动成功";
         return true;
-        
+
     } catch (const std::exception& e) {
         qCritical() << "GameEngine: 启动新游戏异常:" << e.what();
         return false;
     }
+}
+
+bool GameEngine::startNewGameWithId(const QString &playerName, int professionId)
+{
+    QString profession;
+    switch (professionId) {
+        case 0: profession = "warrior"; break;
+        case 1: profession = "mage"; break;
+        case 2: profession = "archer"; break;
+        default: profession = "warrior"; break;
+    }
+    return startNewGame(playerName, profession);
 }
 
 bool GameEngine::loadGame(int slotIndex)

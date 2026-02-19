@@ -14,6 +14,8 @@
 #include "audio/AudioManager.h"
 #include "core/ResourceManager.h"
 #include "game/GameState.h"
+#include "game/Player.h"
+#include "game/BattleSystem.h"
 
 #include <QQmlContext>
 #include <QQuickStyle>
@@ -111,7 +113,10 @@ void GameApplication::start()
 
     // 向QML暴露核心管理器（关键补充）
     m_engine.rootContext()->setContextProperty("gameEngine", m_gameEngine.get());
-    m_engine.rootContext()->setContextProperty("inventorySystem", m_gameEngine->getInventorySystem());  
+    m_engine.rootContext()->setContextProperty("inventorySystem", m_gameEngine->getInventorySystem());
+    m_engine.rootContext()->setContextProperty("player", m_gameEngine->getPlayer());
+    m_engine.rootContext()->setContextProperty("gameState", m_gameEngine->getGameState());
+    m_engine.rootContext()->setContextProperty("battleSystem", m_gameEngine->getBattleSystem());  
     
     // 加载主QML文件
     const QUrl url(QStringLiteral("qrc:/GameUI/qml/main.qml"));
