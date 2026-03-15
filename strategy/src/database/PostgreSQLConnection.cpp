@@ -9,6 +9,79 @@
 
 #include "database/PostgreSQLConnection.h"
 #include <iostream>
+#include <stdexcept>
+#include <string>
+
+namespace {
+
+std::string ParamToSqlLiteral(pqxx::transaction_base& txn, const std::any& param) {
+    if (!param.has_value()) {
+        return "NULL";
+    }
+
+    if (param.type() == typeid(int)) {
+        return txn.quote(std::any_cast<int>(param));
+    }
+    if (param.type() == typeid(long long)) {
+        return txn.quote(std::any_cast<long long>(param));
+    }
+    if (param.type() == typeid(double)) {
+        return txn.quote(std::any_cast<double>(param));
+    }
+    if (param.type() == typeid(bool)) {
+        return std::any_cast<bool>(param) ? "TRUE" : "FALSE";
+    }
+    if (param.type() == typeid(std::string)) {
+        return txn.quote(std::any_cast<std::string>(param));
+    }
+    if (param.type() == typeid(const char*)) {
+        return txn.quote(std::string(std::any_cast<const char*>(param)));
+    }
+
+    throw std::invalid_argument("Unsupported PostgreSQL parameter type");
+}
+
+std::string BuildSqlWithParams(
+    pqxx::transaction_base& txn,
+    const std::string& query,
+    const std::vector<std::any>& params) {
+    if (params.empty()) {
+        return query;
+    }
+
+    std::string sql = query;
+
+    if (sql.find('$') != std::string::npos) {
+        // Replace $n placeholders from high index to low index.
+        for (std::size_t i = params.size(); i > 0; --i) {
+            const std::string placeholder = "$" + std::to_string(i);
+            const std::string literal = ParamToSqlLiteral(txn, params[i - 1]);
+            std::size_t pos = 0;
+            while ((pos = sql.find(placeholder, pos)) != std::string::npos) {
+                sql.replace(pos, placeholder.size(), literal);
+                pos += literal.size();
+            }
+        }
+        return sql;
+    }
+
+    if (sql.find('?') != std::string::npos) {
+        // Replace ? placeholders in order.
+        std::size_t pos = 0;
+        std::size_t index = 0;
+        while ((pos = sql.find('?', pos)) != std::string::npos && index < params.size()) {
+            const std::string literal = ParamToSqlLiteral(txn, params[index]);
+            sql.replace(pos, 1, literal);
+            pos += literal.size();
+            ++index;
+        }
+        return sql;
+    }
+
+    return sql;
+}
+
+} // namespace
 
 namespace strategy {
 
@@ -45,9 +118,6 @@ void PostgreSQLConnection::Disconnect() {
     }
 
     if (connection_) {
-        try {
-            connection_->close();
-        } catch (...) {}
         connection_.reset();
     }
 }
@@ -65,36 +135,15 @@ QueryResult PostgreSQLConnection::ExecuteQuery(const std::string& query, const s
 
     try {
         pqxx::work txn(*connection_);
-        pqxx::result r;
-
-        if (params.empty()) {
-            r = txn.exec(query);
-        } else {
-            pqxx::params p;
-            for (const auto& param : params) {
-                if (param.type() == typeid(int)) {
-                    p.append(std::any_cast<int>(param));
-                } else if (param.type() == typeid(long long)) {
-                    p.append(std::any_cast<long long>(param));
-                } else if (param.type() == typeid(std::string)) {
-                    p.append(std::any_cast<std::string>(param));
-                } else if (param.type() == typeid(double)) {
-                    p.append(std::any_cast<double>(param));
-                } else if (param.type() == typeid(bool)) {
-                    p.append(std::any_cast<bool>(param));
-                } else {
-                    p.append();
-                }
-            }
-            r = txn.exec_params(query, p);
-        }
+        const std::string sql = BuildSqlWithParams(txn, query, params);
+        pqxx::result r = txn.exec(sql);
         txn.commit();
 
         for (const auto& row : r) {
             std::map<std::string, std::any> row_data;
-            for (size_t i = 0; i < row.size(); ++i) {
+            for (std::size_t i = 0; i < row.size(); ++i) {
                 std::string column_name = r.column_name(i);
-                row_data[column_name] = ConvertPqxxField(row[i]);
+                row_data[column_name] = ConvertPqxxField(row[static_cast<pqxx::row::size_type>(i)]);
             }
             result.push_back(row_data);
         }
@@ -113,29 +162,8 @@ int PostgreSQLConnection::ExecuteUpdate(const std::string& query, const std::vec
 
     try {
         pqxx::work txn(*connection_);
-        pqxx::result r;
-
-        if (params.empty()) {
-            r = txn.exec(query);
-        } else {
-            pqxx::params p;
-            for (const auto& param : params) {
-                if (param.type() == typeid(int)) {
-                    p.append(std::any_cast<int>(param));
-                } else if (param.type() == typeid(long long)) {
-                    p.append(std::any_cast<long long>(param));
-                } else if (param.type() == typeid(std::string)) {
-                    p.append(std::any_cast<std::string>(param));
-                } else if (param.type() == typeid(double)) {
-                    p.append(std::any_cast<double>(param));
-                } else if (param.type() == typeid(bool)) {
-                    p.append(std::any_cast<bool>(param));
-                } else {
-                    p.append();
-                }
-            }
-            r = txn.exec_params(query, p);
-        }
+        const std::string sql = BuildSqlWithParams(txn, query, params);
+        pqxx::result r = txn.exec(sql);
         txn.commit();
 
         return static_cast<int>(r.affected_rows());
