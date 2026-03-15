@@ -1,0 +1,138 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>幻境传说 Electron Client</title>
+    <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+    <div class="app-shell">
+        <header class="top-bar">
+            <div class="brand">
+                <h1>幻境传说</h1>
+                <span>Fantasy Legend · Electron</span>
+            </div>
+            <div class="service-state" id="serviceState">服务检测中...</div>
+        </header>
+
+        <main class="main-area">
+            <section class="view view-active" id="viewMainMenu">
+                <div class="hero-card">
+                    <p class="subtitle">在破碎边境，写下你的传说</p>
+                    <h2>主菜单</h2>
+                    <div class="menu-grid">
+                        <button class="menu-btn" id="btnNewGame">新游戏</button>
+                        <button class="menu-btn" id="btnLoadGame">加载游戏</button>
+                        <button class="menu-btn" id="btnSettings">设置</button>
+                        <button class="menu-btn menu-danger" id="btnExit">退出</button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="view" id="viewGameplay">
+                <aside class="left-panel">
+                    <div class="panel-block">
+                        <h3>角色信息</h3>
+                        <p id="playerName">名称: 无</p>
+                        <p id="playerProfession">职业: 无</p>
+                        <p id="playerLevel">等级: 1</p>
+                        <p id="playerHP">生命: 100 / 100</p>
+                        <p id="playerMP">法力: 60 / 60</p>
+                    </div>
+                    <div class="panel-block">
+                        <h3>世界状态</h3>
+                        <p id="gameChapter">章节: 新手村</p>
+                        <p id="gameLocation">地点: 晨风营地</p>
+                        <p id="gameTime">时间: Day 1</p>
+                        <p id="gameGold">金币: 100</p>
+                    </div>
+                    <div class="panel-block actions">
+                        <button class="side-btn" id="btnInventory">背包 (I)</button>
+                        <button class="side-btn" id="btnQuest">任务 (Q)</button>
+                        <button class="side-btn" id="btnSkillTree">技能 (K)</button>
+                        <button class="side-btn" id="btnSave">保存 (F5)</button>
+                        <button class="side-btn" id="btnBackMenu">返回主菜单 (Esc)</button>
+                    </div>
+                </aside>
+
+                <section class="world-panel">
+                    <div class="world-header">
+                        <span id="playerPos">坐标: (0, 0)</span>
+                        <span>移动: WASD / 方向键</span>
+                    </div>
+                    <div id="worldMap" class="world-map">
+                        <div id="playerAvatar" class="player-avatar"></div>
+                    </div>
+                    <div class="skill-bar">
+                        <button class="skill-slot">1</button>
+                        <button class="skill-slot">2</button>
+                        <button class="skill-slot">3</button>
+                        <button class="skill-slot">4</button>
+                        <button class="skill-slot">5</button>
+                        <button class="skill-slot">6</button>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <aside class="drawer" id="inventoryDrawer">
+        <div class="drawer-header">
+            <h3>背包</h3>
+            <button class="ghost-btn" id="closeInventory">关闭</button>
+        </div>
+        <div class="inventory-grid" id="inventoryGrid"></div>
+    </aside>
+
+    <div class="modal hidden" id="modalNewGame">
+        <div class="modal-card">
+            <h3>创建新角色</h3>
+            <label>角色名</label>
+            <input id="inputPlayerName" type="text" maxlength="20" placeholder="输入角色名" />
+            <label>职业</label>
+            <div class="profession-list">
+                <button class="profession selected" data-profession="warrior">战士</button>
+                <button class="profession" data-profession="mage">法师</button>
+                <button class="profession" data-profession="archer">弓箭手</button>
+            </div>
+            <div class="modal-actions">
+                <button id="createCharacter">开始游戏</button>
+                <button class="ghost-btn" data-close="modalNewGame">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal hidden" id="modalLoadGame">
+        <div class="modal-card">
+            <h3>选择存档</h3>
+            <div class="save-list" id="saveList"></div>
+            <div class="modal-actions">
+                <button class="ghost-btn" data-close="modalLoadGame">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal hidden" id="modalSettings">
+        <div class="modal-card">
+            <h3>设置</h3>
+            <label>主音量</label>
+            <input id="volumeRange" type="range" min="0" max="100" value="70" />
+            <label>帧率上限</label>
+            <select id="fpsLimit">
+                <option value="60">60 FPS</option>
+                <option value="120">120 FPS</option>
+                <option value="144">144 FPS</option>
+            </select>
+            <div class="modal-actions">
+                <button id="saveSettings">保存设置</button>
+                <button class="ghost-btn" data-close="modalSettings">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="./renderer.js"></script>
+</body>
+</html>

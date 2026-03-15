@@ -1,0 +1,19 @@
+{
+  "name": "fantasy-legend-electron-client",
+  "version": "1.0.0",
+  "description": "Electron frontend for Fantasy Legend",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:dev": "electron . --dev",
+    "verify": "node --check main.js && node --check preload.js && node --check src/renderer.js"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.14.0",
+    "@grpc/proto-loader": "^0.8.0"
+  },
+  "devDependencies": {
+    "electron": "^37.0.0"
+  }
+}
