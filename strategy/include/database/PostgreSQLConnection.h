@@ -1,25 +1,24 @@
-/*
- * 文件名: PostgreSQLConnection.h
- * 说明: PostgreSQL数据库连接实现
- * 作者: 彭承康
- * 创建时间: 2026-02-18
+﻿/*
+ * File: PostgreSQLConnection.h
+ * Description: PostgreSQL database connection implementation.
  */
 #ifndef STRATEGY_DATABASE_POSTGRESQLCONNECTION_H
 #define STRATEGY_DATABASE_POSTGRESQLCONNECTION_H
 
 #ifdef HAS_PQXX
 
-#include "database/IDatabaseConnection.h"
 #include "database/DatabaseConfig.h"
-#include <pqxx/pqxx>
+#include "database/IDatabaseConnection.h"
+
 #include <memory>
+#include <pqxx/pqxx>
 
 namespace strategy {
 
 class PostgreSQLConnection : public IDatabaseConnection {
 public:
     explicit PostgreSQLConnection(const DatabaseConfig& config);
-    virtual ~PostgreSQLConnection();
+    ~PostgreSQLConnection() override;
 
     bool Connect() override;
     void Disconnect() override;

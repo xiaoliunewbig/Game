@@ -1,24 +1,22 @@
-/*
- * 文件名: StrategyGrpcServiceImpl.h
- * 说明: 策略层 gRPC 服务实现，桥接 proto 接口与内部 StrategyService
- * 作者: 彭承康
- * 创建时间: 2026-02-18
+﻿/*
+ * File: StrategyGrpcServiceImpl.h
+ * Description: Strategy layer gRPC service bridge.
  */
 #ifndef STRATEGY_GRPCSERVICEIMPL_H
 #define STRATEGY_GRPCSERVICEIMPL_H
 
-#include <grpcpp/grpcpp.h>
-#include "StrategyService.pb.h"
-#include "StrategyService.grpc.pb.h"
 #include "Algorithm_interact/StrategyService.h"
+#include "StrategyService.grpc.pb.h"
+#include "StrategyService.pb.h"
+
+#include <grpcpp/grpcpp.h>
 
 namespace strategy {
 
 /**
- * @brief gRPC 服务实现，委托给内部 StrategyService
+ * @brief gRPC service implementation that delegates to StrategyService.
  */
-class StrategyGrpcServiceImpl final
-    : public strategy_proto::StrategyService::Service {
+class StrategyGrpcServiceImpl final : public strategy_proto::StrategyService::Service {
 public:
     StrategyGrpcServiceImpl();
     ~StrategyGrpcServiceImpl() override = default;

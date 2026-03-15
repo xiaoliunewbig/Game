@@ -1,24 +1,21 @@
-/*
- * 文件名: AlgorithmGrpcServiceImpl.h
- * 说明: 算法层 gRPC 服务实现，桥接 proto 接口与内部 AlgorithmService
- * 作者: 彭承康
- * 创建时间: 2026-02-18
+﻿/*
+ * File: AlgorithmGrpcServiceImpl.h
+ * Description: Algorithm layer gRPC service bridge.
  */
 #ifndef ALGORITHM_GRPCSERVICEIMPL_H
 #define ALGORITHM_GRPCSERVICEIMPL_H
 
-#include <grpcpp/grpcpp.h>
-#include "AlgorithmService.pb.h"
 #include "AlgorithmService.grpc.pb.h"
 #include "AlgorithmService.h"
+
+#include <grpcpp/grpcpp.h>
 
 namespace algorithm {
 
 /**
- * @brief gRPC 服务实现，委托给内部 AlgorithmService
+ * @brief gRPC service implementation that delegates to AlgorithmService.
  */
-class AlgorithmGrpcServiceImpl final
-    : public algorithm_proto::AlgorithmService::Service {
+class AlgorithmGrpcServiceImpl final : public algorithm_proto::AlgorithmService::Service {
 public:
     AlgorithmGrpcServiceImpl();
     ~AlgorithmGrpcServiceImpl() override = default;

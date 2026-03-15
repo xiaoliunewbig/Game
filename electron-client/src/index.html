@@ -40,6 +40,7 @@
                         <p id="playerHP">生命: 100 / 100</p>
                         <p id="playerMP">法力: 60 / 60</p>
                     </div>
+
                     <div class="panel-block">
                         <h3>世界状态</h3>
                         <p id="gameChapter">章节: 新手村</p>
@@ -47,12 +48,60 @@
                         <p id="gameTime">时间: Day 1</p>
                         <p id="gameGold">金币: 100</p>
                     </div>
+
                     <div class="panel-block actions">
                         <button class="side-btn" id="btnInventory">背包 (I)</button>
                         <button class="side-btn" id="btnQuest">任务 (Q)</button>
                         <button class="side-btn" id="btnSkillTree">技能 (K)</button>
                         <button class="side-btn" id="btnSave">保存 (F5)</button>
                         <button class="side-btn" id="btnBackMenu">返回主菜单 (Esc)</button>
+                    </div>
+
+                    <div class="panel-block">
+                        <h3>战斗模拟</h3>
+                        <div class="control-row">
+                            <label>攻击者</label>
+                            <input id="inputAttacker" class="tiny-input" type="number" value="1" min="1" />
+                            <label>防御者</label>
+                            <input id="inputDefender" class="tiny-input" type="number" value="2" min="1" />
+                            <label>技能</label>
+                            <input id="inputSkill" class="tiny-input" type="number" value="1" min="1" />
+                        </div>
+                        <div class="control-actions">
+                            <button class="side-btn compact" id="btnRunDamage">计算伤害</button>
+                            <button class="side-btn compact" id="btnRunAI">AI 决策</button>
+                        </div>
+                        <div class="panel-log" id="combatResult">等待模拟...</div>
+                    </div>
+
+                    <div class="panel-block">
+                        <h3>规则与事件</h3>
+                        <div class="control-actions">
+                            <button class="side-btn compact" id="btnReloadRules">刷新规则</button>
+                            <button class="side-btn compact" id="btnSyncState">同步状态</button>
+                            <button class="side-btn compact" id="btnTriggerStory">触发剧情事件</button>
+                            <button class="side-btn compact" id="btnTriggerCombat">触发战斗事件</button>
+                        </div>
+                        <div class="rule-list" id="ruleList"></div>
+                    </div>
+
+                    <div class="panel-block">
+                        <h3>后端状态快照</h3>
+                        <div class="snapshot-grid">
+                            <div>
+                                <p class="snapshot-title">全局变量</p>
+                                <div class="rule-list" id="serverVars"></div>
+                            </div>
+                            <div>
+                                <p class="snapshot-title">世界标记</p>
+                                <div class="rule-list" id="serverFlags"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-block">
+                        <h3>系统日志</h3>
+                        <div class="panel-log" id="eventLog"></div>
                     </div>
                 </aside>
 

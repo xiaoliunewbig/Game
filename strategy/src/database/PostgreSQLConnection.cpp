@@ -1,13 +1,12 @@
-/*
- * 文件名: PostgreSQLConnection.cpp
- * 说明: PostgreSQL数据库连接实现
- * 作者: 彭承康
- * 创建时间: 2026-02-18
+﻿/*
+ * File: PostgreSQLConnection.cpp
+ * Description: PostgreSQL database connection implementation.
  */
 
 #ifdef HAS_PQXX
 
 #include "database/PostgreSQLConnection.h"
+
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -95,15 +94,15 @@ PostgreSQLConnection::~PostgreSQLConnection() {
 
 bool PostgreSQLConnection::Connect() {
     try {
-        std::string conn_str = config_.GetConnectionString();
+        const std::string conn_str = config_.GetConnectionString();
         connection_ = std::make_unique<pqxx::connection>(conn_str);
 
         if (connection_->is_open()) {
-            std::cout << "PostgreSQL连接成功: " << config_.database << std::endl;
+            std::cout << "PostgreSQL connected: " << config_.database << std::endl;
             return true;
         }
     } catch (const std::exception& e) {
-        std::cerr << "PostgreSQL连接失败: " << e.what() << std::endl;
+        std::cerr << "PostgreSQL connection failed: " << e.what() << std::endl;
         connection_.reset();
     }
     return false;
@@ -113,7 +112,8 @@ void PostgreSQLConnection::Disconnect() {
     if (transaction_) {
         try {
             transaction_->abort();
-        } catch (...) {}
+        } catch (...) {
+        }
         transaction_.reset();
     }
 
@@ -130,25 +130,25 @@ QueryResult PostgreSQLConnection::ExecuteQuery(const std::string& query, const s
     QueryResult result;
 
     if (!IsConnected()) {
-        throw std::runtime_error("数据库未连接");
+        throw std::runtime_error("Database is not connected");
     }
 
     try {
         pqxx::work txn(*connection_);
         const std::string sql = BuildSqlWithParams(txn, query, params);
-        pqxx::result r = txn.exec(sql);
+        const pqxx::result rows = txn.exec(sql);
         txn.commit();
 
-        for (const auto& row : r) {
+        for (const auto& row : rows) {
             std::map<std::string, std::any> row_data;
             for (std::size_t i = 0; i < row.size(); ++i) {
-                std::string column_name = r.column_name(i);
+                const std::string column_name = rows.column_name(i);
                 row_data[column_name] = ConvertPqxxField(row[static_cast<pqxx::row::size_type>(i)]);
             }
             result.push_back(row_data);
         }
     } catch (const std::exception& e) {
-        std::cerr << "查询执行失败: " << e.what() << std::endl;
+        std::cerr << "Query execution failed: " << e.what() << std::endl;
         throw;
     }
 
@@ -157,18 +157,18 @@ QueryResult PostgreSQLConnection::ExecuteQuery(const std::string& query, const s
 
 int PostgreSQLConnection::ExecuteUpdate(const std::string& query, const std::vector<std::any>& params) {
     if (!IsConnected()) {
-        throw std::runtime_error("数据库未连接");
+        throw std::runtime_error("Database is not connected");
     }
 
     try {
         pqxx::work txn(*connection_);
         const std::string sql = BuildSqlWithParams(txn, query, params);
-        pqxx::result r = txn.exec(sql);
+        const pqxx::result rows = txn.exec(sql);
         txn.commit();
 
-        return static_cast<int>(r.affected_rows());
+        return static_cast<int>(rows.affected_rows());
     } catch (const std::exception& e) {
-        std::cerr << "更新执行失败: " << e.what() << std::endl;
+        std::cerr << "Update execution failed: " << e.what() << std::endl;
         throw;
     }
 }
@@ -185,7 +185,7 @@ bool PostgreSQLConnection::BeginTransaction() {
         transaction_ = std::make_unique<pqxx::work>(*connection_);
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "开始事务失败: " << e.what() << std::endl;
+        std::cerr << "Failed to begin transaction: " << e.what() << std::endl;
         return false;
     }
 }
@@ -200,7 +200,7 @@ bool PostgreSQLConnection::CommitTransaction() {
         transaction_.reset();
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "提交事务失败: " << e.what() << std::endl;
+        std::cerr << "Failed to commit transaction: " << e.what() << std::endl;
         return false;
     }
 }
@@ -215,7 +215,7 @@ bool PostgreSQLConnection::RollbackTransaction() {
         transaction_.reset();
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "回滚事务失败: " << e.what() << std::endl;
+        std::cerr << "Failed to rollback transaction: " << e.what() << std::endl;
         return false;
     }
 }
@@ -223,14 +223,14 @@ bool PostgreSQLConnection::RollbackTransaction() {
 long long PostgreSQLConnection::GetLastInsertId() {
     try {
         pqxx::work txn(*connection_);
-        pqxx::result r = txn.exec("SELECT lastval()");
+        const pqxx::result rows = txn.exec("SELECT lastval()");
         txn.commit();
 
-        if (!r.empty()) {
-            return r[0][0].as<long long>();
+        if (!rows.empty()) {
+            return rows[0][0].as<long long>();
         }
     } catch (const std::exception& e) {
-        std::cerr << "获取最后插入ID失败: " << e.what() << std::endl;
+        std::cerr << "Failed to get last insert id: " << e.what() << std::endl;
     }
     return -1;
 }
@@ -240,14 +240,13 @@ std::any PostgreSQLConnection::ConvertPqxxField(const pqxx::field& field) {
         return std::any{};
     }
 
-    std::string value = field.as<std::string>();
+    const std::string value = field.as<std::string>();
 
     try {
         if (value.find('.') != std::string::npos) {
             return std::stod(value);
-        } else {
-            return std::stoll(value);
         }
+        return std::stoll(value);
     } catch (...) {
         return value;
     }

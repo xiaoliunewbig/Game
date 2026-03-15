@@ -2,6 +2,7 @@
 
 contextBridge.exposeInMainWorld("gameApi", {
     checkServices: () => ipcRenderer.invoke("service:health"),
+    bootstrapGame: () => ipcRenderer.invoke("game:bootstrap"),
     calculateDamage: (request) => ipcRenderer.invoke("algorithm:calculate-damage", request),
     getSkillTree: (request) => ipcRenderer.invoke("algorithm:skill-tree", request),
     aiDecision: (request) => ipcRenderer.invoke("algorithm:ai-decision", request),
