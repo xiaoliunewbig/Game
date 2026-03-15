@@ -40,6 +40,12 @@ jobs:
       - name: Build
         run: cmake --build build --parallel
 
+      - name: Build test targets
+        run: cmake --build build --target algorithm_tests strategy_tests --parallel
+
+      - name: List registered tests
+        run: ctest --test-dir build -N
+
       - name: Test
         run: ctest --test-dir build --output-on-failure --parallel 4
 

@@ -92,7 +92,11 @@ public:
 
 private:
     std::unordered_map<int, GameEvent> events_;
-    std::priority_queue<std::pair<std::chrono::steady_clock::time_point, int>> scheduled_events_;
+    std::priority_queue<
+        std::pair<std::chrono::steady_clock::time_point, int>,
+        std::vector<std::pair<std::chrono::steady_clock::time_point, int>>,
+        std::greater<std::pair<std::chrono::steady_clock::time_point, int>>
+    > scheduled_events_;
     
     void InitializeDefaultEvents();
     void InitializeStoryEvents();
