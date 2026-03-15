@@ -38,7 +38,7 @@ jobs:
         run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
       - name: Build
-        run: cmake --build build --target build_all --parallel
+        run: cmake --build build --parallel
 
       - name: Test
         run: ctest --test-dir build --output-on-failure --parallel 4
