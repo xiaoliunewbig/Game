@@ -76,6 +76,7 @@ const refs = {
     eventRuleRows: document.getElementById("eventRuleRows"),
     btnAddEventRule: document.getElementById("btnAddEventRule"),
     btnApplyEventRules: document.getElementById("btnApplyEventRules"),
+    btnFetchEventRules: document.getElementById("btnFetchEventRules"),
     eventRulePreview: document.getElementById("eventRulePreview")
 };
 
@@ -398,6 +399,17 @@ function hydrateEventRulesFromState(stateJson) {
     }
 }
 
+async function loadEventRulesFromBackend() {
+    try {
+        const response = await window.gameApi.queryGameState({ query_type: "event_rule_map", entity_id: 0 });
+        const raw = response.state_json || "{}";
+        hydrateEventRulesFromState(raw);
+        appendLog("Fetched event_rule_map from backend");
+    } catch (error) {
+        showToast(`拉取映射失败: ${error.details || error.message}`);
+        appendLog(`Fetch event_rule_map failed: ${error.details || error.message}`);
+    }
+}
 async function applyEventRuleMappings() {
     const mapping = collectEventRuleMap();
     if (Object.keys(mapping).length === 0) {
@@ -612,6 +624,7 @@ async function bootstrapFromBackend() {
     try {
         const payload = await window.gameApi.bootstrapGame();
         applyBootstrapData(payload);
+        await loadEventRulesFromBackend();
         await syncServerState();
         appendLog("Bootstrap completed");
     } catch (error) {
@@ -714,6 +727,7 @@ function bindEvents() {
     refs.btnApplyStateJson.addEventListener("click", applyDebugWorldState);
     refs.btnAddEventRule.addEventListener("click", () => { createEventRuleRow("", ""); updateEventRulePreview(); });
     refs.btnApplyEventRules.addEventListener("click", applyEventRuleMappings);
+    refs.btnFetchEventRules.addEventListener("click", loadEventRulesFromBackend);
     refs.btnTriggerStory.addEventListener("click", () => triggerEvent(1001, [state.world.day]));
     refs.btnTriggerCombat.addEventListener("click", () => triggerEvent(2001, [50]));
 
@@ -793,6 +807,10 @@ function bootstrap() {
 }
 
 bootstrap();
+
+
+
+
 
 
 

@@ -30,6 +30,7 @@ public:
 private:
     void UpdateEventRuleMapFromJson(const std::string& world_state_json);
     std::string ResolveRuleIdForEvent(int event_id) const;
+    std::string SerializeEventRuleMapJson() const;
 
     std::unique_ptr<GameRuleManager> rule_manager_;
     std::unique_ptr<WorldStateEngine> world_engine_;

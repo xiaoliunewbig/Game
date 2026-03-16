@@ -251,7 +251,31 @@ GameRules StrategyService::GetGameRules(const std::string& rule_category) {
 }
 
 GameState StrategyService::QueryGameState(const std::string& query_type) {
+    if (query_type == "event_rule_map") {
+        GameState state;
+        state.is_valid = true;
+        state.state_json = SerializeEventRuleMapJson();
+        return state;
+    }
+
     return world_engine_->QueryGameState(query_type);
+}
+
+std::string StrategyService::SerializeEventRuleMapJson() const {
+    std::ostringstream oss;
+    oss << "{\"event_rule_map\":{";
+
+    bool first = true;
+    for (const auto& item : event_rule_map_) {
+        if (!first) {
+            oss << ",";
+        }
+        oss << "\"" << item.first << "\":\"" << item.second << "\"";
+        first = false;
+    }
+    oss << "}}";
+
+    return oss.str();
 }
 
 } // namespace strategy

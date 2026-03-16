@@ -98,4 +98,8 @@ TEST(StrategyServiceTests, RuntimeEventRuleMappingCanBeUpdated) {
     auto it = state.world_state.global_variables.find("combat_count");
     ASSERT_NE(it, state.world_state.global_variables.end());
     EXPECT_GE(it->second, 1);
+
+    const strategy::GameState mapping_state = service.QueryGameState("event_rule_map");
+    EXPECT_TRUE(mapping_state.is_valid);
+    EXPECT_NE(mapping_state.state_json.find("\"1001\":\"combat_start\""), std::string::npos);
 }
