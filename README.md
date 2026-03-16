@@ -37,6 +37,19 @@ cd D:\Game\Game
 
 This runs backend configure/build/test plus Electron `npm run verify` in one command.
 
+### Linux/macOS Full Verify
+
+```bash
+cd /path/to/Game
+chmod +x scripts/full_verify.sh
+./scripts/full_verify.sh
+```
+
+Modes:
+
+- `./scripts/full_verify.sh --backend-only`
+- `./scripts/full_verify.sh --frontend-only`
+
 ## Run Backend Services
 
 ```bash

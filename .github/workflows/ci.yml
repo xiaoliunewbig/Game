@@ -1,4 +1,4 @@
-name: CI/CD
+﻿name: CI/CD
 
 on:
   push:
@@ -34,20 +34,14 @@ jobs:
             protobuf-compiler-grpc \
             libpqxx-dev
 
-      - name: Configure
-        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-
-      - name: Build
-        run: cmake --build build --parallel
-
-      - name: Build test targets
-        run: cmake --build build --target algorithm_tests strategy_tests --parallel
-
-      - name: List registered tests
-        run: ctest --test-dir build -N
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure --parallel 4
+      - name: Backend verify via script
+        run: |
+          chmod +x scripts/full_verify.sh
+          ./scripts/full_verify.sh \
+            --backend-only \
+            --build-dir build \
+            --build-type "${{ env.BUILD_TYPE }}" \
+            --generator Ninja
 
       - name: Upload backend artifacts
         if: always()
@@ -73,19 +67,13 @@ jobs:
           C:\vcpkg\bootstrap-vcpkg.bat
           C:\vcpkg\vcpkg.exe install grpc protobuf libpqxx sqlite3 --triplet x64-windows
 
-      - name: Configure
+      - name: Backend verify via script
         shell: pwsh
         run: |
-          cmake -S . -B build-vs2022 -G "Visual Studio 17 2022" -A x64 `
-            -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
-
-      - name: Build
-        shell: pwsh
-        run: cmake --build build-vs2022 --config Release --parallel
-
-      - name: Test
-        shell: pwsh
-        run: ctest --test-dir build-vs2022 -C Release --output-on-failure
+          .\scripts\build_windows.ps1 \
+            -BuildDir build-vs2022 \
+            -BuildType ${{ env.BUILD_TYPE }} \
+            -ToolchainFile C:\vcpkg\scripts\buildsystems\vcpkg.cmake
 
   electron-ci:
     name: Electron Verify (${{ matrix.os }})
@@ -103,13 +91,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - name: Install frontend dependencies
-        working-directory: electron-client
-        run: npm install
 
-      - name: Verify frontend scripts
-        working-directory: electron-client
-        run: npm run verify
+      - name: Frontend verify via script (Linux/macOS)
+        if: matrix.os != 'windows-2022'
+        run: |
+          chmod +x scripts/full_verify.sh
+          ./scripts/full_verify.sh --frontend-only
+
+      - name: Frontend verify via script (Windows)
+        if: matrix.os == 'windows-2022'
+        shell: pwsh
+        run: |
+          .\scripts\build_windows.ps1 \
+            -SkipConfigure \
+            -SkipBuild \
+            -SkipTests \
+            -VerifyFrontend
 
   release-artifacts:
     name: Release Artifacts
