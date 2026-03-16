@@ -1,5 +1,7 @@
 ﻿const SETTINGS_KEY = "fantasy_legend_settings_v1";
 const EVENT_RULE_KEY = "fantasy_legend_event_rule_map_v1";
+const EVENT_RULE_VERSIONS_KEY = "fantasy_legend_event_rule_versions_v1";
+const EVENT_RULE_PUBLISH_HISTORY_KEY = "fantasy_legend_event_rule_publish_history_v1";
 
 const state = {
     currentView: "mainMenu",
@@ -24,7 +26,8 @@ const state = {
         volume: 70,
         fpsLimit: "60"
     },
-    rules: []
+    rules: [],
+    pendingRulePublish: null
 };
 
 const refs = {
@@ -80,7 +83,15 @@ const refs = {
     btnExportEventRules: document.getElementById("btnExportEventRules"),
     btnImportEventRules: document.getElementById("btnImportEventRules"),
     inputEventRulesFile: document.getElementById("inputEventRulesFile"),
-    eventRulePreview: document.getElementById("eventRulePreview")
+    eventRulePreview: document.getElementById("eventRulePreview"),
+    eventRuleVersionSelect: document.getElementById("eventRuleVersionSelect"),
+    btnSaveRuleVersion: document.getElementById("btnSaveRuleVersion"),
+    btnApplyRuleVersion: document.getElementById("btnApplyRuleVersion"),
+    btnRollbackRuleVersion: document.getElementById("btnRollbackRuleVersion"),
+    btnPreviewRuleDiff: document.getElementById("btnPreviewRuleDiff"),
+    modalRuleDiff: document.getElementById("modalRuleDiff"),
+    ruleDiffContent: document.getElementById("ruleDiffContent"),
+    confirmRuleDiff: document.getElementById("confirmRuleDiff")
 };
 
 function appendLog(message) {
@@ -111,6 +122,9 @@ function openModal(id) {
 
 function closeModal(id) {
     document.getElementById(id).classList.add("hidden");
+    if (id === "modalRuleDiff") {
+        state.pendingRulePublish = null;
+    }
 }
 
 function updateHUD() {
@@ -420,6 +434,242 @@ function loadPersistedEventRuleMap() {
     }
 }
 
+function persistEventRuleVersions(versions) {
+    localStorage.setItem(EVENT_RULE_VERSIONS_KEY, JSON.stringify(versions));
+}
+
+function loadPersistedEventRuleVersions() {
+    try {
+        const raw = localStorage.getItem(EVENT_RULE_VERSIONS_KEY);
+        if (!raw) {
+            return [];
+        }
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        return parsed
+            .filter((item) => item && typeof item === "object" && item.map && typeof item.map === "object")
+            .map((item) => ({
+                id: String(item.id || `version_${Date.now()}`),
+                label: String(item.label || "Untitled"),
+                createdAt: String(item.createdAt || new Date().toISOString()),
+                map: item.map
+            }));
+    } catch {
+        return [];
+    }
+}
+
+function persistPublishHistory(history) {
+    localStorage.setItem(EVENT_RULE_PUBLISH_HISTORY_KEY, JSON.stringify(history));
+}
+
+function loadPublishHistory() {
+    try {
+        const raw = localStorage.getItem(EVENT_RULE_PUBLISH_HISTORY_KEY);
+        if (!raw) {
+            return [];
+        }
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        return parsed
+            .filter((item) => item && typeof item === "object" && item.map && typeof item.map === "object")
+            .map((item) => ({
+                at: String(item.at || new Date().toISOString()),
+                map: item.map
+            }));
+    } catch {
+        return [];
+    }
+}
+
+function setEventRuleRowsFromMap(mapping) {
+    refs.eventRuleRows.innerHTML = "";
+    Object.entries(mapping || {}).forEach(([id, rule]) => {
+        createEventRuleRow(String(id), String(rule));
+    });
+    updateEventRulePreview();
+}
+
+function renderRuleVersionOptions() {
+    if (!(refs.eventRuleVersionSelect instanceof HTMLSelectElement)) {
+        return;
+    }
+
+    const versions = loadPersistedEventRuleVersions();
+    refs.eventRuleVersionSelect.innerHTML = "";
+
+    if (versions.length === 0) {
+        const empty = document.createElement("option");
+        empty.value = "";
+        empty.textContent = "暂无版本";
+        refs.eventRuleVersionSelect.appendChild(empty);
+        return;
+    }
+
+    versions.forEach((version) => {
+        const option = document.createElement("option");
+        option.value = version.id;
+        option.textContent = version.label;
+        refs.eventRuleVersionSelect.appendChild(option);
+    });
+}
+
+function saveCurrentRuleVersion() {
+    const validation = validateEventRuleRows(collectEventRuleMap());
+    if (!validation.ok) {
+        showToast(validation.message);
+        return;
+    }
+
+    const map = validation.map;
+    if (Object.keys(map).length === 0) {
+        showToast("当前没有可保存的映射");
+        return;
+    }
+
+    const now = new Date();
+    const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
+    const version = {
+        id: `v_${Date.now()}`,
+        label: `${stamp} (${Object.keys(map).length} items)`,
+        createdAt: now.toISOString(),
+        map
+    };
+
+    const versions = loadPersistedEventRuleVersions();
+    versions.unshift(version);
+    const capped = versions.slice(0, 20);
+    persistEventRuleVersions(capped);
+    renderRuleVersionOptions();
+    if (refs.eventRuleVersionSelect instanceof HTMLSelectElement) {
+        refs.eventRuleVersionSelect.value = version.id;
+    }
+    appendLog(`Saved rule version: ${version.label}`);
+    showToast("映射版本已保存");
+}
+
+async function applySelectedRuleVersion() {
+    if (!(refs.eventRuleVersionSelect instanceof HTMLSelectElement)) {
+        return;
+    }
+
+    const selected = refs.eventRuleVersionSelect.value;
+    if (!selected) {
+        showToast("请选择版本");
+        return;
+    }
+
+    const versions = loadPersistedEventRuleVersions();
+    const target = versions.find((item) => item.id === selected);
+    if (!target) {
+        showToast("版本不存在");
+        return;
+    }
+
+    setEventRuleRowsFromMap(target.map);
+    openRuleDiffModal(target.map, "version");
+}
+
+function recordPublishedRuleMap(map) {
+    const history = loadPublishHistory();
+    history.unshift({
+        at: new Date().toISOString(),
+        map
+    });
+    persistPublishHistory(history.slice(0, 30));
+}
+
+async function rollbackPublishedRuleVersion() {
+    const history = loadPublishHistory();
+    if (history.length < 2) {
+        showToast("没有可回滚的发布版本");
+        return;
+    }
+
+    const target = history[1];
+    setEventRuleRowsFromMap(target.map);
+    openRuleDiffModal(target.map, "rollback");
+}
+function buildEventRuleMetaPayload() {
+    return {
+        event_rule_versions: loadPersistedEventRuleVersions(),
+        event_rule_publish_history: loadPublishHistory()
+    };
+}
+
+function buildRuleDiffText(currentMap, nextMap) {
+    const current = currentMap || {};
+    const next = nextMap || {};
+
+    const keys = new Set([...Object.keys(current), ...Object.keys(next)]);
+    const sorted = Array.from(keys).sort((a, b) => Number(a) - Number(b));
+
+    const lines = [];
+    sorted.forEach((key) => {
+        const oldRule = current[key];
+        const newRule = next[key];
+        if (oldRule === undefined && newRule !== undefined) {
+            lines.push('+ [' + key + '] ' + newRule);
+            return;
+        }
+        if (oldRule !== undefined && newRule === undefined) {
+            lines.push('- [' + key + '] ' + oldRule);
+            return;
+        }
+        if (oldRule !== newRule) {
+            lines.push('~ [' + key + '] ' + oldRule + ' -> ' + newRule);
+        }
+    });
+
+    return lines.length > 0 ? lines.join('\n') : 'No mapping changes';
+}
+
+function openRuleDiffModal(targetMap, source) {
+    const currentMap = loadPersistedEventRuleMap();
+    refs.ruleDiffContent.textContent = buildRuleDiffText(currentMap, targetMap);
+    state.pendingRulePublish = { map: targetMap, source };
+    openModal('modalRuleDiff');
+}
+
+function requestManualRulePublish() {
+    const validation = validateEventRuleRows(collectEventRuleMap());
+    if (!validation.ok) {
+        showToast(validation.message);
+        return;
+    }
+
+    if (Object.keys(validation.map).length === 0) {
+        showToast('Please add at least one mapping');
+        return;
+    }
+
+    openRuleDiffModal(validation.map, 'manual');
+}
+
+async function loadEventRuleMetaFromBackend() {
+    try {
+        const response = await window.gameApi.queryGameState({ query_type: 'event_rule_meta', entity_id: 0 });
+        const parsed = JSON.parse(response.state_json || '{}');
+
+        if (Array.isArray(parsed.event_rule_versions)) {
+            persistEventRuleVersions(parsed.event_rule_versions);
+            renderRuleVersionOptions();
+        }
+        if (Array.isArray(parsed.event_rule_publish_history)) {
+            persistPublishHistory(parsed.event_rule_publish_history);
+        }
+
+        appendLog('Fetched event_rule_meta from backend');
+    } catch (error) {
+        appendLog('Fetch event_rule_meta skipped: ' + (error.details || error.message));
+    }
+}
 function hydrateEventRulesFromState(stateJson) {
     if (!stateJson) {
         return;
@@ -432,11 +682,7 @@ function hydrateEventRulesFromState(stateJson) {
             return;
         }
 
-        refs.eventRuleRows.innerHTML = "";
-        Object.entries(mapping).forEach(([id, rule]) => {
-            createEventRuleRow(id, String(rule));
-        });
-        updateEventRulePreview();
+        setEventRuleRowsFromMap(mapping);
         persistEventRuleMap(mapping);
     } catch {
     }
@@ -454,8 +700,8 @@ async function loadEventRulesFromBackend() {
     }
 }
 
-async function applyEventRuleMappings() {
-    const validation = validateEventRuleRows(collectEventRuleMap());
+async function applyEventRuleMappings(mapOverride = null, source = "manual") {
+    const validation = mapOverride ? { ok: true, message: "", map: mapOverride } : validateEventRuleRows(collectEventRuleMap());
     if (!validation.ok) {
         showToast(validation.message);
         return;
@@ -463,21 +709,23 @@ async function applyEventRuleMappings() {
 
     const mapping = validation.map;
     if (Object.keys(mapping).length === 0) {
-        showToast("请先添加至少一条映射");
+        showToast("Please add at least one mapping");
         return;
     }
 
     try {
         const payload = {
-            event_rule_map: mapping
+            event_rule_map: mapping,
+            ...buildEventRuleMetaPayload()
         };
         await window.gameApi.updateWorldState({ world_state_json: JSON.stringify(payload) });
         refs.debugWorldState.value = JSON.stringify(payload, null, 2);
         persistEventRuleMap(mapping);
-        appendLog(`Hot updated event_rule_map: ${Object.keys(mapping).length} items`);
-        showToast("映射热更新成功");
+        recordPublishedRuleMap(mapping);
+        appendLog(`Hot updated event_rule_map (${source}): ${Object.keys(mapping).length} items`);
+        showToast(source === "manual" ? "Mapping hot update succeeded" : "Version mapping published");
     } catch (error) {
-        showToast(`映射热更新失败: ${error.details || error.message}`);
+        showToast(`Mapping hot update failed: ${error.details || error.message}`);
         appendLog(`Apply event_rule_map failed: ${error.details || error.message}`);
     }
 }
@@ -514,18 +762,16 @@ function importEventRuleMappingsFromFile(file) {
             const parsed = JSON.parse(String(reader.result || "{}"));
             const mapping = parsed.event_rule_map;
             if (!mapping || typeof mapping !== "object") {
-                showToast("导入文件缺少 event_rule_map");
+                showToast("Missing event_rule_map in imported file");
                 return;
             }
 
-            refs.eventRuleRows.innerHTML = "";
-            Object.entries(mapping).forEach(([id, rule]) => createEventRuleRow(String(id), String(rule)));
-            updateEventRulePreview();
+            setEventRuleRowsFromMap(mapping);
             persistEventRuleMap(mapping);
             appendLog(`Imported event rule map from file: ${Object.keys(mapping).length}`);
-            showToast("导入映射成功");
+            showToast("Import mapping succeeded");
         } catch {
-            showToast("导入失败：JSON 格式错误");
+            showToast("Import failed: invalid JSON format");
         }
     };
     reader.readAsText(file);
@@ -725,6 +971,7 @@ async function bootstrapFromBackend() {
         const payload = await window.gameApi.bootstrapGame();
         applyBootstrapData(payload);
         await loadEventRulesFromBackend();
+        await loadEventRuleMetaFromBackend();
         await syncServerState();
         appendLog("Bootstrap completed");
     } catch (error) {
@@ -826,16 +1073,42 @@ function bindEvents() {
     refs.btnLoadStateJson.addEventListener("click", loadCurrentStateJson);
     refs.btnApplyStateJson.addEventListener("click", applyDebugWorldState);
     refs.btnAddEventRule.addEventListener("click", () => { createEventRuleRow("", ""); updateEventRulePreview(); });
-    refs.btnApplyEventRules.addEventListener("click", applyEventRuleMappings);
+    refs.btnApplyEventRules.addEventListener("click", requestManualRulePublish);
     refs.btnFetchEventRules.addEventListener("click", loadEventRulesFromBackend);
     refs.btnExportEventRules.addEventListener("click", exportEventRuleMappings);
     refs.btnImportEventRules.addEventListener("click", () => refs.inputEventRulesFile.click());
+    refs.btnPreviewRuleDiff.addEventListener("click", requestManualRulePublish);
+    refs.btnSaveRuleVersion.addEventListener("click", saveCurrentRuleVersion);
+    refs.btnApplyRuleVersion.addEventListener("click", () => {
+        applySelectedRuleVersion().catch((error) => {
+            showToast(`Apply version failed: ${error.details || error.message}`);
+            appendLog(`Apply version failed: ${error.details || error.message}`);
+        });
+    });
+    refs.btnRollbackRuleVersion.addEventListener("click", () => {
+        rollbackPublishedRuleVersion().catch((error) => {
+            showToast(`Rollback failed: ${error.details || error.message}`);
+            appendLog(`Rollback failed: ${error.details || error.message}`);
+        });
+    });
     refs.inputEventRulesFile.addEventListener("change", (event) => {
         const target = event.target;
         if (target instanceof HTMLInputElement && target.files && target.files[0]) {
             importEventRuleMappingsFromFile(target.files[0]);
             target.value = "";
         }
+    });
+    refs.confirmRuleDiff.addEventListener("click", () => {
+        const pending = state.pendingRulePublish;
+        if (!pending) {
+            closeModal("modalRuleDiff");
+            return;
+        }
+
+        applyEventRuleMappings(pending.map, pending.source)
+            .finally(() => {
+                closeModal("modalRuleDiff");
+            });
     });
     refs.btnTriggerStory.addEventListener("click", () => triggerEvent(1001, [state.world.day]));
     refs.btnTriggerCombat.addEventListener("click", () => triggerEvent(2001, [50]));
@@ -900,6 +1173,7 @@ function bootstrap() {
     buildInventory();
     buildSaveSlots();
     bindEvents();
+    renderRuleVersionOptions();
     const persistedMap = loadPersistedEventRuleMap();
     const persistedEntries = Object.entries(persistedMap);
     if (persistedEntries.length > 0) {

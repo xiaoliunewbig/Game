@@ -413,3 +413,37 @@ body {
     height: 28px;
     padding: 0;
 }
+
+.version-row {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.version-row .tiny-input {
+    height: 34px;
+}
+
+@media (max-width: 980px) {
+    .version-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.modal-wide {
+    width: min(760px, 94vw);
+}
+
+.diff-content {
+    max-height: 420px;
+    overflow: auto;
+    white-space: pre-wrap;
+    background: #0f1e22;
+    border: 1px solid #2d464a;
+    border-radius: 8px;
+    padding: 10px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.45;
+}

@@ -103,3 +103,28 @@ TEST(StrategyServiceTests, RuntimeEventRuleMappingCanBeUpdated) {
     EXPECT_TRUE(mapping_state.is_valid);
     EXPECT_NE(mapping_state.state_json.find("\"1001\":\"combat_start\""), std::string::npos);
 }
+
+TEST(StrategyServiceTests, QueryEventRuleMetaReturnsVersionsAndHistory) {
+    strategy::StrategyService service;
+
+    strategy::WorldStateUpdate update;
+    update.world_state_json =
+        R"({
+            "event_rule_map": {"1001": "combat_start"},
+            "event_rule_versions": [
+                {"id": "v_1", "label": "seed", "map": {"1001": "combat_start"}}
+            ],
+            "event_rule_publish_history": [
+                {"at": "2026-03-16T00:00:00Z", "map": {"1001": "combat_start"}}
+            ]
+        })";
+
+    const strategy::WorldStateResult update_result = service.UpdateWorldState(update);
+    ASSERT_TRUE(update_result.success);
+
+    const strategy::GameState meta_state = service.QueryGameState("event_rule_meta");
+    EXPECT_TRUE(meta_state.is_valid);
+    EXPECT_NE(meta_state.state_json.find("\"event_rule_versions\""), std::string::npos);
+    EXPECT_NE(meta_state.state_json.find("\"event_rule_publish_history\""), std::string::npos);
+    EXPECT_NE(meta_state.state_json.find("\"v_1\""), std::string::npos);
+}

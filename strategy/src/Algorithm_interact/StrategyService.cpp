@@ -62,6 +62,56 @@ std::unordered_map<int, std::string> LoadEventRuleMapFromEnv() {
     return mapping;
 }
 
+std::string ExtractJsonArrayByKey(const std::string& json, const std::string& key) {
+    const std::string quoted_key = "\"" + key + "\"";
+    const std::size_t key_pos = json.find(quoted_key);
+    if (key_pos == std::string::npos) {
+        return "";
+    }
+
+    const std::size_t start = json.find('[', key_pos);
+    if (start == std::string::npos) {
+        return "";
+    }
+
+    bool in_string = false;
+    bool escape = false;
+    int depth = 0;
+
+    for (std::size_t i = start; i < json.size(); ++i) {
+        const char ch = json[i];
+        if (escape) {
+            escape = false;
+            continue;
+        }
+
+        if (ch == '\\') {
+            escape = true;
+            continue;
+        }
+
+        if (ch == '\"') {
+            in_string = !in_string;
+            continue;
+        }
+
+        if (in_string) {
+            continue;
+        }
+
+        if (ch == '[') {
+            ++depth;
+        } else if (ch == ']') {
+            --depth;
+            if (depth == 0) {
+                return json.substr(start, i - start + 1);
+            }
+        }
+    }
+
+    return "";
+}
+
 std::unordered_map<int, std::string> ParseEventRuleMapFromJson(const std::string& json) {
     std::unordered_map<int, std::string> parsed;
 
@@ -164,7 +214,9 @@ StrategyService::StrategyService()
     : rule_manager_(std::make_unique<GameRuleManager>()),
       world_engine_(std::make_unique<WorldStateEngine>()),
       event_scheduler_(std::make_unique<EventScheduler>()),
-      event_rule_map_(LoadEventRuleMapFromEnv()) {
+      event_rule_map_(LoadEventRuleMapFromEnv()),
+      event_rule_versions_json_("[]"),
+      event_rule_publish_history_json_("[]") {
 }
 
 WorldStateResult StrategyService::UpdateWorldState(const WorldStateUpdate& update) {
@@ -172,6 +224,7 @@ WorldStateResult StrategyService::UpdateWorldState(const WorldStateUpdate& updat
 
     try {
         UpdateEventRuleMapFromJson(update.world_state_json);
+        UpdateEventRuleMetaFromJson(update.world_state_json);
         const bool success = world_engine_->UpdateWorldState(update.world_state_json);
         if (success) {
             result.success = true;
@@ -238,6 +291,18 @@ void StrategyService::UpdateEventRuleMapFromJson(const std::string& world_state_
     }
 }
 
+void StrategyService::UpdateEventRuleMetaFromJson(const std::string& world_state_json) {
+    const std::string versions = ExtractJsonArrayByKey(world_state_json, "event_rule_versions");
+    if (!versions.empty()) {
+        event_rule_versions_json_ = versions;
+    }
+
+    const std::string publish_history = ExtractJsonArrayByKey(world_state_json, "event_rule_publish_history");
+    if (!publish_history.empty()) {
+        event_rule_publish_history_json_ = publish_history;
+    }
+}
+
 std::string StrategyService::ResolveRuleIdForEvent(int event_id) const {
     const auto it = event_rule_map_.find(event_id);
     if (it != event_rule_map_.end()) {
@@ -255,6 +320,13 @@ GameState StrategyService::QueryGameState(const std::string& query_type) {
         GameState state;
         state.is_valid = true;
         state.state_json = SerializeEventRuleMapJson();
+        return state;
+    }
+
+    if (query_type == "event_rule_meta") {
+        GameState state;
+        state.is_valid = true;
+        state.state_json = SerializeEventRuleMetaJson();
         return state;
     }
 
@@ -278,4 +350,10 @@ std::string StrategyService::SerializeEventRuleMapJson() const {
     return oss.str();
 }
 
+std::string StrategyService::SerializeEventRuleMetaJson() const {
+    std::ostringstream oss;
+    oss << "{\"event_rule_versions\":" << event_rule_versions_json_
+        << ",\"event_rule_publish_history\":" << event_rule_publish_history_json_ << "}";
+    return oss.str();
+}
 } // namespace strategy

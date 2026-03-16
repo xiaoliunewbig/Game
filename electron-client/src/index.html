@@ -110,11 +110,18 @@
 
                     <div class="panel-block">
                         <h3>事件规则映射</h3>
+                        <div class="version-row">
+                            <select id="eventRuleVersionSelect" class="tiny-input"></select>
+                            <button class="side-btn compact" id="btnSaveRuleVersion">保存版本</button>
+                            <button class="side-btn compact" id="btnApplyRuleVersion">应用版本</button>
+                            <button class="side-btn compact" id="btnRollbackRuleVersion">回滚发布</button>
+                        </div>
                         <div class="mapping-grid" id="eventRuleRows"></div>
                         <div class="control-actions">
                             <button class="side-btn compact" id="btnAddEventRule">新增映射</button>
                             <button class="side-btn compact" id="btnApplyEventRules">热更新映射</button>
                             <button class="side-btn compact" id="btnFetchEventRules">拉取后端映射</button>
+                            <button class="side-btn compact" id="btnPreviewRuleDiff">Preview Diff</button>
                             <button class="side-btn compact" id="btnExportEventRules">导出JSON</button>
                             <button class="side-btn compact" id="btnImportEventRules">导入JSON</button>
                         </div>
@@ -202,16 +209,19 @@
         </div>
     </div>
 
+    <div class="modal hidden" id="modalRuleDiff">
+        <div class="modal-card modal-wide">
+            <h3>Mapping Diff Preview</h3>
+            <div id="ruleDiffContent" class="diff-content"></div>
+            <div class="modal-actions">
+                <button id="confirmRuleDiff">Confirm Publish</button>
+                <button class="ghost-btn" data-close="modalRuleDiff">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div class="toast" id="toast"></div>
 
     <script src="./renderer.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-

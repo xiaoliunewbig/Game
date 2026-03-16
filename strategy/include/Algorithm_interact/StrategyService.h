@@ -13,6 +13,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace strategy {
 
@@ -29,13 +30,17 @@ public:
 
 private:
     void UpdateEventRuleMapFromJson(const std::string& world_state_json);
+    void UpdateEventRuleMetaFromJson(const std::string& world_state_json);
     std::string ResolveRuleIdForEvent(int event_id) const;
     std::string SerializeEventRuleMapJson() const;
+    std::string SerializeEventRuleMetaJson() const;
 
     std::unique_ptr<GameRuleManager> rule_manager_;
     std::unique_ptr<WorldStateEngine> world_engine_;
     std::unique_ptr<EventScheduler> event_scheduler_;
     std::unordered_map<int, std::string> event_rule_map_;
+    std::string event_rule_versions_json_;
+    std::string event_rule_publish_history_json_;
 };
 
 } // namespace strategy
