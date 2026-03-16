@@ -8,7 +8,8 @@
     [switch]$SkipConfigure,
     [switch]$SkipBuild,
     [switch]$SkipTests,
-    [switch]$VerifyFrontend
+    [switch]$VerifyFrontend,
+    [switch]$SkipPathNormalization
 )
 
 $ErrorActionPreference = "Stop"
@@ -40,17 +41,20 @@ function Invoke-Step {
     }
 }
 
-# Detect broken env table (common when conda injects both Path/PATH).
-try {
-    Get-ChildItem Env: | Out-Null
-} catch {
-    throw @"
-Detected duplicated environment keys (usually Path/PATH conflict from conda shell).
-Please run:
-  1) conda deactivate
-  2) Open a new PowerShell terminal
-  3) Re-run this script
-"@
+function Normalize-ProcessPathEnvironment {
+    # Some shells (notably conda-initialized ones) can leave both Path and PATH
+    # in process env, which breaks MSBuild tool invocation on Windows.
+    $pathValue = [System.Environment]::GetEnvironmentVariable("Path", "Process")
+    if ([string]::IsNullOrWhiteSpace($pathValue)) {
+        $pathValue = [System.Environment]::GetEnvironmentVariable("PATH", "Process")
+    }
+
+    [System.Environment]::SetEnvironmentVariable("PATH", $null, "Process")
+    [System.Environment]::SetEnvironmentVariable("Path", $pathValue, "Process")
+}
+
+if (-not $SkipPathNormalization) {
+    Normalize-ProcessPathEnvironment
 }
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path

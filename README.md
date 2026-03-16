@@ -26,7 +26,16 @@ cd D:\Game\Game
 .\scripts\build_windows.ps1 -BuildDir build-vs2022 -BuildType Release
 ```
 
-If you use Conda and hit MSBuild `Path/PATH` environment conflicts, run `conda deactivate` and open a fresh terminal before building.
+`build_windows.ps1` now auto-normalizes `Path/PATH` conflicts by default (common in Conda shells).
+
+### Windows Full Verify
+
+```powershell
+cd D:\Game\Game
+.\scripts\full_verify_windows.ps1 -BuildDir build-vs2022 -BuildType Release
+```
+
+This runs backend configure/build/test plus Electron `npm run verify` in one command.
 
 ## Run Backend Services
 
@@ -65,6 +74,18 @@ STRATEGY_EVENT_RULE_MAP="1001=story_chapter_1;2001=combat_start;3001=quest_kill_
 ```
 
 In Electron gameplay panel, use `事件规则映射` to edit and hot-apply mappings without restarting services.
+
+Additional runtime metadata is also synced end-to-end:
+
+- `event_rule_versions`
+- `event_rule_publish_history`
+
+Frontend now provides a diff preview + confirm publish flow before mapping updates are sent to backend.
+
+Backend query support:
+
+- `QueryGameState("event_rule_map")`
+- `QueryGameState("event_rule_meta")`
 
 ## Repository Layout
 
