@@ -379,3 +379,19 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+.debug-textarea {
+    width: 100%;
+    min-height: 120px;
+    max-height: 180px;
+    resize: vertical;
+    border: 1px solid #3d5a5f;
+    border-radius: 8px;
+    background: #0f1e22;
+    color: var(--text);
+    padding: 8px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}

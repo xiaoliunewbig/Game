@@ -58,6 +58,35 @@ jobs:
             build/bin/
             build/lib/
 
+  backend-ci-windows:
+    name: Backend Build & Test (Windows)
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup vcpkg dependencies
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          C:\vcpkg\bootstrap-vcpkg.bat
+          C:\vcpkg\vcpkg.exe install grpc protobuf libpqxx sqlite3 --triplet x64-windows
+
+      - name: Configure
+        shell: pwsh
+        run: |
+          cmake -S . -B build-vs2022 -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build-vs2022 --config Release --parallel
+
+      - name: Test
+        shell: pwsh
+        run: ctest --test-dir build-vs2022 -C Release --output-on-failure
+
   electron-ci:
     name: Electron Verify (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -85,7 +114,7 @@ jobs:
   release-artifacts:
     name: Release Artifacts
     runs-on: ubuntu-22.04
-    needs: [backend-ci-linux, electron-ci]
+    needs: [backend-ci-linux, backend-ci-windows, electron-ci]
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:

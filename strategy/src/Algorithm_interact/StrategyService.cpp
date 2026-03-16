@@ -5,23 +5,74 @@
 
 #include "Algorithm_interact/StrategyService.h"
 
+#include <algorithm>
+#include <cstdlib>
 #include <exception>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 
 namespace {
 
-std::string ResolveRuleIdForEvent(int event_id) {
-    switch (event_id) {
-        case 1001:
-            return "story_chapter_1";
-        case 2001:
-            return "combat_start";
-        case 3001:
-            return "quest_kill_monsters";
-        default:
-            return "event_" + std::to_string(event_id);
+std::unordered_map<int, std::string> BuildDefaultEventRuleMap() {
+    return {
+        {1001, "story_chapter_1"},
+        {2001, "combat_start"},
+        {3001, "quest_kill_monsters"}
+    };
+}
+
+std::unordered_map<int, std::string> LoadEventRuleMapFromEnv() {
+    std::unordered_map<int, std::string> mapping = BuildDefaultEventRuleMap();
+
+    const char* raw = std::getenv("STRATEGY_EVENT_RULE_MAP");
+    if (raw == nullptr) {
+        return mapping;
     }
+
+    std::string text(raw);
+    std::replace(text.begin(), text.end(), ',', ';');
+
+    std::stringstream ss(text);
+    std::string token;
+    while (std::getline(ss, token, ';')) {
+        if (token.empty()) {
+            continue;
+        }
+
+        const std::size_t sep = token.find('=');
+        if (sep == std::string::npos) {
+            continue;
+        }
+
+        const std::string id_text = token.substr(0, sep);
+        const std::string rule_id = token.substr(sep + 1);
+        if (id_text.empty() || rule_id.empty()) {
+            continue;
+        }
+
+        try {
+            const int event_id = std::stoi(id_text);
+            mapping[event_id] = rule_id;
+        } catch (...) {
+        }
+    }
+
+    return mapping;
+}
+
+const std::unordered_map<int, std::string>& EventRuleMap() {
+    static const std::unordered_map<int, std::string> mapping = LoadEventRuleMapFromEnv();
+    return mapping;
+}
+
+std::string ResolveRuleIdForEvent(int event_id) {
+    const auto& mapping = EventRuleMap();
+    const auto it = mapping.find(event_id);
+    if (it != mapping.end()) {
+        return it->second;
+    }
+    return "event_" + std::to_string(event_id);
 }
 
 int ApplyNumericEffectValue(const std::string& effect_value, int current_value) {

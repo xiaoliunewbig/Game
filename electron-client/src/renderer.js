@@ -68,7 +68,10 @@ const refs = {
     ruleList: document.getElementById("ruleList"),
     eventLog: document.getElementById("eventLog"),
     serverVars: document.getElementById("serverVars"),
-    serverFlags: document.getElementById("serverFlags")
+    serverFlags: document.getElementById("serverFlags"),
+    debugWorldState: document.getElementById("debugWorldState"),
+    btnLoadStateJson: document.getElementById("btnLoadStateJson"),
+    btnApplyStateJson: document.getElementById("btnApplyStateJson")
 };
 
 function appendLog(message) {
@@ -264,6 +267,43 @@ async function syncServerState() {
     }
 }
 
+async function loadCurrentStateJson() {
+    try {
+        const response = await window.gameApi.queryGameState({ query_type: "world", entity_id: 0 });
+        refs.debugWorldState.value = response.state_json || "{}";
+        appendLog("Loaded world_state_json into debug panel");
+    } catch (error) {
+        showToast(`读取状态失败: ${error.details || error.message}`);
+        appendLog(`Load state json failed: ${error.details || error.message}`);
+    }
+}
+
+async function applyDebugWorldState() {
+    const raw = (refs.debugWorldState.value || "").trim();
+    if (!raw) {
+        showToast("请输入或读取状态JSON");
+        return;
+    }
+
+    try {
+        JSON.parse(raw);
+    } catch {
+        showToast("JSON 格式错误");
+        return;
+    }
+
+    try {
+        await window.gameApi.updateWorldState({ world_state_json: raw });
+        applyStateJson(raw);
+        await syncServerState();
+        updateHUD();
+        appendLog("Applied debug world_state_json");
+        showToast("状态下发成功");
+    } catch (error) {
+        showToast(`状态下发失败: ${error.details || error.message}`);
+        appendLog(`Apply state json failed: ${error.details || error.message}`);
+    }
+}
 function applyBootstrapData(payload) {
     if (!payload) {
         return;
@@ -278,6 +318,7 @@ function applyBootstrapData(payload) {
 
     if (payload.state?.state_json) {
         applyStateJson(payload.state.state_json);
+        refs.debugWorldState.value = payload.state.state_json;
     }
 
     if (payload.rules && Array.isArray(payload.rules.rules)) {
@@ -553,6 +594,8 @@ function bindEvents() {
     refs.btnRunAI.addEventListener("click", runAIDecision);
     refs.btnReloadRules.addEventListener("click", reloadRules);
     refs.btnSyncState.addEventListener("click", syncServerState);
+    refs.btnLoadStateJson.addEventListener("click", loadCurrentStateJson);
+    refs.btnApplyStateJson.addEventListener("click", applyDebugWorldState);
     refs.btnTriggerStory.addEventListener("click", () => triggerEvent(1001, [state.world.day]));
     refs.btnTriggerCombat.addEventListener("click", () => triggerEvent(2001, [50]));
 
@@ -621,3 +664,8 @@ function bootstrap() {
 }
 
 bootstrap();
+
+
+
+
+
