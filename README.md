@@ -51,6 +51,21 @@ npm start
 - Algorithm Service: `50051`
 - Strategy Service: `50052`
 
+## Event-Rule Mapping
+
+Strategy service supports configurable event-to-rule mapping through:
+
+- Environment variable at startup: `STRATEGY_EVENT_RULE_MAP`
+- Runtime hot update via `UpdateWorldState` payload field `event_rule_map`
+
+Example env value:
+
+```bash
+STRATEGY_EVENT_RULE_MAP="1001=story_chapter_1;2001=combat_start;3001=quest_kill_monsters"
+```
+
+In Electron gameplay panel, use `事件规则映射` to edit and hot-apply mappings without restarting services.
+
 ## Repository Layout
 
 ```text

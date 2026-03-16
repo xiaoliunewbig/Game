@@ -73,3 +73,29 @@ TEST(StrategyServiceTests, TriggerCombatEventAppliesGlobalEffects) {
     ASSERT_NE(it, state.world_state.global_variables.end());
     EXPECT_GE(it->second, 1);
 }
+
+TEST(StrategyServiceTests, RuntimeEventRuleMappingCanBeUpdated) {
+    strategy::StrategyService service;
+
+    strategy::WorldStateUpdate update;
+    update.world_state_json =
+        R"({
+            "event_rule_map": {"1001": "combat_start"},
+            "global_variables": {"player_level": 6},
+            "world_flags": {"tutorial_complete": true}
+        })";
+    const strategy::WorldStateResult update_result = service.UpdateWorldState(update);
+    ASSERT_TRUE(update_result.success);
+
+    strategy::EventTriggerRequest request;
+    request.event_id = 1001;
+    request.params = {90};
+
+    const strategy::EventTriggerResult event_result = service.TriggerEvent(request);
+    EXPECT_TRUE(event_result.triggered);
+
+    const strategy::GameState state = service.QueryGameState("global_vars");
+    auto it = state.world_state.global_variables.find("combat_count");
+    ASSERT_NE(it, state.world_state.global_variables.end());
+    EXPECT_GE(it->second, 1);
+}

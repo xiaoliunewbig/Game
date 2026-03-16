@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <exception>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -61,18 +62,44 @@ std::unordered_map<int, std::string> LoadEventRuleMapFromEnv() {
     return mapping;
 }
 
-const std::unordered_map<int, std::string>& EventRuleMap() {
-    static const std::unordered_map<int, std::string> mapping = LoadEventRuleMapFromEnv();
-    return mapping;
-}
+std::unordered_map<int, std::string> ParseEventRuleMapFromJson(const std::string& json) {
+    std::unordered_map<int, std::string> parsed;
 
-std::string ResolveRuleIdForEvent(int event_id) {
-    const auto& mapping = EventRuleMap();
-    const auto it = mapping.find(event_id);
-    if (it != mapping.end()) {
-        return it->second;
+    const std::size_t key_pos = json.find("\"event_rule_map\"");
+    if (key_pos == std::string::npos) {
+        return parsed;
     }
-    return "event_" + std::to_string(event_id);
+
+    const std::size_t start = json.find('{', key_pos);
+    if (start == std::string::npos) {
+        return parsed;
+    }
+
+    int depth = 0;
+    std::size_t end = std::string::npos;
+    for (std::size_t i = start; i < json.size(); ++i) {
+        if (json[i] == '{') {
+            ++depth;
+        } else if (json[i] == '}') {
+            --depth;
+            if (depth == 0) {
+                end = i;
+                break;
+            }
+        }
+    }
+
+    if (end == std::string::npos || end <= start) {
+        return parsed;
+    }
+
+    const std::string body = json.substr(start + 1, end - start - 1);
+    const std::regex pair_regex("\"(\\d+)\"\\s*:\\s*\"([^\"]+)\"");
+    for (std::sregex_iterator it(body.begin(), body.end(), pair_regex), regex_end; it != regex_end; ++it) {
+        parsed[std::stoi((*it)[1].str())] = (*it)[2].str();
+    }
+
+    return parsed;
 }
 
 int ApplyNumericEffectValue(const std::string& effect_value, int current_value) {
@@ -99,16 +126,31 @@ std::unordered_map<std::string, std::string> BuildRuleContext(
         context["flag_" + flag.first] = flag.second ? "true" : "false";
     }
 
+    for (std::size_t i = 0; i < request.params.size(); ++i) {
+        context["param_" + std::to_string(i)] = std::to_string(request.params[i]);
+    }
+
     if (request.event_id == 1001 && !request.params.empty()) {
         context["player_level"] = std::to_string(request.params[0]);
     } else if (request.event_id == 2001) {
         context["player_health"] = request.params.empty() ? "100" : std::to_string(request.params[0]);
-        if (context.find("enemy_distance") == context.end()) {
-            context["enemy_distance"] = "3";
-        }
+        context["enemy_distance"] = "3";
     } else if (request.event_id == 3001 && !request.params.empty()) {
         const int killed = request.params.size() > 1 ? request.params[1] : request.params[0];
         context["monsters_killed"] = std::to_string(killed);
+    }
+
+    if (context.find("monsters_killed") == context.end() && !request.params.empty()) {
+        context["monsters_killed"] = std::to_string(request.params.back());
+    }
+    if (context.find("player_level") == context.end() && !request.params.empty()) {
+        context["player_level"] = std::to_string(request.params[0]);
+    }
+    if (context.find("player_health") == context.end()) {
+        context["player_health"] = request.params.empty() ? "100" : std::to_string(request.params[0]);
+    }
+    if (context.find("enemy_distance") == context.end()) {
+        context["enemy_distance"] = "3";
     }
 
     return context;
@@ -121,13 +163,15 @@ namespace strategy {
 StrategyService::StrategyService()
     : rule_manager_(std::make_unique<GameRuleManager>()),
       world_engine_(std::make_unique<WorldStateEngine>()),
-      event_scheduler_(std::make_unique<EventScheduler>()) {
+      event_scheduler_(std::make_unique<EventScheduler>()),
+      event_rule_map_(LoadEventRuleMapFromEnv()) {
 }
 
 WorldStateResult StrategyService::UpdateWorldState(const WorldStateUpdate& update) {
     WorldStateResult result;
 
     try {
+        UpdateEventRuleMapFromJson(update.world_state_json);
         const bool success = world_engine_->UpdateWorldState(update.world_state_json);
         if (success) {
             result.success = true;
@@ -185,6 +229,21 @@ EventTriggerResult StrategyService::TriggerEvent(const EventTriggerRequest& requ
     }
 
     return result;
+}
+
+void StrategyService::UpdateEventRuleMapFromJson(const std::string& world_state_json) {
+    const auto parsed = ParseEventRuleMapFromJson(world_state_json);
+    for (const auto& item : parsed) {
+        event_rule_map_[item.first] = item.second;
+    }
+}
+
+std::string StrategyService::ResolveRuleIdForEvent(int event_id) const {
+    const auto it = event_rule_map_.find(event_id);
+    if (it != event_rule_map_.end()) {
+        return it->second;
+    }
+    return "event_" + std::to_string(event_id);
 }
 
 GameRules StrategyService::GetGameRules(const std::string& rule_category) {

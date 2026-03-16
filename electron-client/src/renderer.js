@@ -1,4 +1,5 @@
 ﻿const SETTINGS_KEY = "fantasy_legend_settings_v1";
+const EVENT_RULE_KEY = "fantasy_legend_event_rule_map_v1";
 
 const state = {
     currentView: "mainMenu",
@@ -71,7 +72,11 @@ const refs = {
     serverFlags: document.getElementById("serverFlags"),
     debugWorldState: document.getElementById("debugWorldState"),
     btnLoadStateJson: document.getElementById("btnLoadStateJson"),
-    btnApplyStateJson: document.getElementById("btnApplyStateJson")
+    btnApplyStateJson: document.getElementById("btnApplyStateJson"),
+    eventRuleRows: document.getElementById("eventRuleRows"),
+    btnAddEventRule: document.getElementById("btnAddEventRule"),
+    btnApplyEventRules: document.getElementById("btnApplyEventRules"),
+    eventRulePreview: document.getElementById("eventRulePreview")
 };
 
 function appendLog(message) {
@@ -271,6 +276,7 @@ async function loadCurrentStateJson() {
     try {
         const response = await window.gameApi.queryGameState({ query_type: "world", entity_id: 0 });
         refs.debugWorldState.value = response.state_json || "{}";
+        hydrateEventRulesFromState(response.state_json);
         appendLog("Loaded world_state_json into debug panel");
     } catch (error) {
         showToast(`读取状态失败: ${error.details || error.message}`);
@@ -304,6 +310,115 @@ async function applyDebugWorldState() {
         appendLog(`Apply state json failed: ${error.details || error.message}`);
     }
 }
+function createEventRuleRow(eventId = "", ruleId = "") {
+    const row = document.createElement("div");
+    row.className = "mapping-row";
+    row.innerHTML = `
+        <input class="tiny-input mapping-id" type="number" min="1" placeholder="event id" value="${eventId}" />
+        <input class="tiny-input mapping-rule" type="text" placeholder="rule id" value="${ruleId}" />
+        <button class="ghost-btn mapping-remove" type="button">删</button>
+    `;
+
+    row.querySelector(".mapping-remove")?.addEventListener("click", () => {
+        row.remove();
+        updateEventRulePreview();
+    });
+
+    row.querySelectorAll("input").forEach((input) => {
+        input.addEventListener("input", updateEventRulePreview);
+    });
+
+    refs.eventRuleRows.appendChild(row);
+}
+
+function collectEventRuleMap() {
+    const map = {};
+    refs.eventRuleRows.querySelectorAll(".mapping-row").forEach((row) => {
+        const idInput = row.querySelector(".mapping-id");
+        const ruleInput = row.querySelector(".mapping-rule");
+        if (!(idInput instanceof HTMLInputElement) || !(ruleInput instanceof HTMLInputElement)) {
+            return;
+        }
+
+        const eventId = Number(idInput.value);
+        const ruleId = ruleInput.value.trim();
+        if (eventId > 0 && ruleId) {
+            map[String(eventId)] = ruleId;
+        }
+    });
+    return map;
+}
+
+function updateEventRulePreview() {
+    const map = collectEventRuleMap();
+    const pairs = Object.entries(map).map(([id, rule]) => `${id}=${rule}`);
+    refs.eventRulePreview.textContent = pairs.length > 0
+        ? `ENV: ${pairs.join(";")}`
+        : "ENV: <empty>";
+}
+
+function persistEventRuleMap(map) {
+    localStorage.setItem(EVENT_RULE_KEY, JSON.stringify(map));
+}
+
+function loadPersistedEventRuleMap() {
+    try {
+        const raw = localStorage.getItem(EVENT_RULE_KEY);
+        if (!raw) {
+            return {};
+        }
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") {
+            return {};
+        }
+        return parsed;
+    } catch {
+        return {};
+    }
+}
+function hydrateEventRulesFromState(stateJson) {
+    if (!stateJson) {
+        return;
+    }
+
+    try {
+        const parsed = JSON.parse(stateJson);
+        const mapping = parsed.event_rule_map;
+        if (!mapping || typeof mapping !== "object") {
+            return;
+        }
+
+        refs.eventRuleRows.innerHTML = "";
+        Object.entries(mapping).forEach(([id, rule]) => {
+            createEventRuleRow(id, String(rule));
+        });
+        updateEventRulePreview();
+        persistEventRuleMap(mapping);
+    } catch {
+    }
+}
+
+async function applyEventRuleMappings() {
+    const mapping = collectEventRuleMap();
+    if (Object.keys(mapping).length === 0) {
+        showToast("请先添加至少一条映射");
+        return;
+    }
+
+    try {
+        const payload = {
+            event_rule_map: mapping
+        };
+        await window.gameApi.updateWorldState({ world_state_json: JSON.stringify(payload) });
+        refs.debugWorldState.value = JSON.stringify(payload, null, 2);
+        persistEventRuleMap(mapping);
+        appendLog(`Hot updated event_rule_map: ${Object.keys(mapping).length} items`);
+        showToast("映射热更新成功");
+    } catch (error) {
+        showToast(`映射热更新失败: ${error.details || error.message}`);
+        appendLog(`Apply event_rule_map failed: ${error.details || error.message}`);
+    }
+}
 function applyBootstrapData(payload) {
     if (!payload) {
         return;
@@ -319,6 +434,7 @@ function applyBootstrapData(payload) {
     if (payload.state?.state_json) {
         applyStateJson(payload.state.state_json);
         refs.debugWorldState.value = payload.state.state_json;
+        hydrateEventRulesFromState(payload.state.state_json);
     }
 
     if (payload.rules && Array.isArray(payload.rules.rules)) {
@@ -596,6 +712,8 @@ function bindEvents() {
     refs.btnSyncState.addEventListener("click", syncServerState);
     refs.btnLoadStateJson.addEventListener("click", loadCurrentStateJson);
     refs.btnApplyStateJson.addEventListener("click", applyDebugWorldState);
+    refs.btnAddEventRule.addEventListener("click", () => { createEventRuleRow("", ""); updateEventRulePreview(); });
+    refs.btnApplyEventRules.addEventListener("click", applyEventRuleMappings);
     refs.btnTriggerStory.addEventListener("click", () => triggerEvent(1001, [state.world.day]));
     refs.btnTriggerCombat.addEventListener("click", () => triggerEvent(2001, [50]));
 
@@ -659,11 +777,31 @@ function bootstrap() {
     buildInventory();
     buildSaveSlots();
     bindEvents();
+    const persistedMap = loadPersistedEventRuleMap();
+    const persistedEntries = Object.entries(persistedMap);
+    if (persistedEntries.length > 0) {
+        persistedEntries.forEach(([id, rule]) => createEventRuleRow(id, String(rule)));
+        updateEventRulePreview();
+    } else if (refs.eventRuleRows.children.length === 0) {
+        createEventRuleRow("1001", "story_chapter_1");
+        createEventRuleRow("2001", "combat_start");
+        createEventRuleRow("3001", "quest_kill_monsters");
+        updateEventRulePreview();
+    }
     updateHUD();
     bootstrapFromBackend();
 }
 
 bootstrap();
+
+
+
+
+
+
+
+
+
 
 
 
