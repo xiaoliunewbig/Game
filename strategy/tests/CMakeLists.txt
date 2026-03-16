@@ -1,12 +1,16 @@
-# strategy/tests/CMakeLists.txt
+﻿# strategy/tests/CMakeLists.txt
 
-# Build a lightweight test library with only the sources needed for testing
-# This avoids requiring libpqxx just to test SHA256, PasswordHasher, etc.
+# Build a lightweight test library including security/database and strategy logic modules.
+# This keeps tests independent from gRPC server binaries while covering core behavior.
 add_library(strategy_test_lib STATIC
     ${CMAKE_SOURCE_DIR}/strategy/src/security/SHA256.cpp
     ${CMAKE_SOURCE_DIR}/strategy/src/security/PasswordHasher.cpp
     ${CMAKE_SOURCE_DIR}/strategy/src/database/JsonConfigParser.cpp
     ${CMAKE_SOURCE_DIR}/strategy/src/database/DatabaseConfig.cpp
+    ${CMAKE_SOURCE_DIR}/strategy/src/Algorithm_interact/GameRuleManager.cpp
+    ${CMAKE_SOURCE_DIR}/strategy/src/Algorithm_interact/WorldStateEngine.cpp
+    ${CMAKE_SOURCE_DIR}/strategy/src/Algorithm_interact/EventScheduler.cpp
+    ${CMAKE_SOURCE_DIR}/strategy/src/Algorithm_interact/StrategyService.cpp
 )
 
 target_include_directories(strategy_test_lib PUBLIC
@@ -32,6 +36,7 @@ add_executable(strategy_tests
     test_password_hasher.cpp
     test_json_config_parser.cpp
     test_database_config.cpp
+    test_strategy_logic.cpp
 )
 
 target_include_directories(strategy_tests PRIVATE

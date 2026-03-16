@@ -19,6 +19,15 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --target build_all -j
 ```
 
+### Windows Quick Build
+
+```powershell
+cd D:\Game\Game
+.\scripts\build_windows.ps1 -BuildDir build-vs2022 -BuildType Release
+```
+
+If you use Conda and hit MSBuild `Path/PATH` environment conflicts, run `conda deactivate` and open a fresh terminal before building.
+
 ## Run Backend Services
 
 ```bash
