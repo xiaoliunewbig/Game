@@ -115,7 +115,10 @@
                             <button class="side-btn compact" id="btnAddEventRule">新增映射</button>
                             <button class="side-btn compact" id="btnApplyEventRules">热更新映射</button>
                             <button class="side-btn compact" id="btnFetchEventRules">拉取后端映射</button>
+                            <button class="side-btn compact" id="btnExportEventRules">导出JSON</button>
+                            <button class="side-btn compact" id="btnImportEventRules">导入JSON</button>
                         </div>
+                        <input id="inputEventRulesFile" type="file" accept=".json,application/json" class="hidden" />
                         <div class="panel-log" id="eventRulePreview"></div>
                     </div>
                     <div class="panel-block">
@@ -204,6 +207,9 @@
     <script src="./renderer.js"></script>
 </body>
 </html>
+
+
+
 
 
 

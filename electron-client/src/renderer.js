@@ -77,6 +77,9 @@ const refs = {
     btnAddEventRule: document.getElementById("btnAddEventRule"),
     btnApplyEventRules: document.getElementById("btnApplyEventRules"),
     btnFetchEventRules: document.getElementById("btnFetchEventRules"),
+    btnExportEventRules: document.getElementById("btnExportEventRules"),
+    btnImportEventRules: document.getElementById("btnImportEventRules"),
+    inputEventRulesFile: document.getElementById("inputEventRulesFile"),
     eventRulePreview: document.getElementById("eventRulePreview")
 };
 
@@ -333,7 +336,7 @@ function createEventRuleRow(eventId = "", ruleId = "") {
 }
 
 function collectEventRuleMap() {
-    const map = {};
+    const rows = [];
     refs.eventRuleRows.querySelectorAll(".mapping-row").forEach((row) => {
         const idInput = row.querySelector(".mapping-id");
         const ruleInput = row.querySelector(".mapping-rule");
@@ -341,17 +344,56 @@ function collectEventRuleMap() {
             return;
         }
 
-        const eventId = Number(idInput.value);
-        const ruleId = ruleInput.value.trim();
-        if (eventId > 0 && ruleId) {
-            map[String(eventId)] = ruleId;
-        }
+        rows.push({
+            eventIdRaw: idInput.value.trim(),
+            ruleId: ruleInput.value.trim()
+        });
     });
-    return map;
+    return rows;
+}
+
+function validateEventRuleRows(rows) {
+    const seen = new Set();
+    const map = {};
+    const ruleIdRegex = /^[A-Za-z0-9_:-]+$/;
+
+    for (const row of rows) {
+        if (!row.eventIdRaw && !row.ruleId) {
+            continue;
+        }
+
+        if (!row.eventIdRaw || !row.ruleId) {
+            return { ok: false, message: "event id 与 rule id 必须同时填写", map: {} };
+        }
+
+        const eventId = Number(row.eventIdRaw);
+        if (!Number.isInteger(eventId) || eventId <= 0) {
+            return { ok: false, message: `无效 event id: ${row.eventIdRaw}`, map: {} };
+        }
+
+        if (!ruleIdRegex.test(row.ruleId)) {
+            return { ok: false, message: `rule id 含非法字符: ${row.ruleId}`, map: {} };
+        }
+
+        const key = String(eventId);
+        if (seen.has(key)) {
+            return { ok: false, message: `重复 event id: ${key}`, map: {} };
+        }
+        seen.add(key);
+        map[key] = row.ruleId;
+    }
+
+    return { ok: true, message: "", map };
 }
 
 function updateEventRulePreview() {
-    const map = collectEventRuleMap();
+    const validation = validateEventRuleRows(collectEventRuleMap());
+    if (!validation.ok) {
+        refs.eventRulePreview.textContent = `INVALID: ${validation.message}`;
+        return;
+    }
+
+    const map = validation.map;
     const pairs = Object.entries(map).map(([id, rule]) => `${id}=${rule}`);
     refs.eventRulePreview.textContent = pairs.length > 0
         ? `ENV: ${pairs.join(";")}`
@@ -377,6 +419,7 @@ function loadPersistedEventRuleMap() {
         return {};
     }
 }
+
 function hydrateEventRulesFromState(stateJson) {
     if (!stateJson) {
         return;
@@ -410,8 +453,15 @@ async function loadEventRulesFromBackend() {
         appendLog(`Fetch event_rule_map failed: ${error.details || error.message}`);
     }
 }
+
 async function applyEventRuleMappings() {
-    const mapping = collectEventRuleMap();
+    const validation = validateEventRuleRows(collectEventRuleMap());
+    if (!validation.ok) {
+        showToast(validation.message);
+        return;
+    }
+
+    const mapping = validation.map;
     if (Object.keys(mapping).length === 0) {
         showToast("请先添加至少一条映射");
         return;
@@ -431,6 +481,56 @@ async function applyEventRuleMappings() {
         appendLog(`Apply event_rule_map failed: ${error.details || error.message}`);
     }
 }
+
+function exportEventRuleMappings() {
+    const validation = validateEventRuleRows(collectEventRuleMap());
+    if (!validation.ok) {
+        showToast(validation.message);
+        return;
+    }
+
+    const payload = {
+        event_rule_map: validation.map
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `event_rule_map_${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    appendLog("Exported event rule map to json");
+}
+
+function importEventRuleMappingsFromFile(file) {
+    if (!file) {
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const parsed = JSON.parse(String(reader.result || "{}"));
+            const mapping = parsed.event_rule_map;
+            if (!mapping || typeof mapping !== "object") {
+                showToast("导入文件缺少 event_rule_map");
+                return;
+            }
+
+            refs.eventRuleRows.innerHTML = "";
+            Object.entries(mapping).forEach(([id, rule]) => createEventRuleRow(String(id), String(rule)));
+            updateEventRulePreview();
+            persistEventRuleMap(mapping);
+            appendLog(`Imported event rule map from file: ${Object.keys(mapping).length}`);
+            showToast("导入映射成功");
+        } catch {
+            showToast("导入失败：JSON 格式错误");
+        }
+    };
+    reader.readAsText(file);
+}
+
 function applyBootstrapData(payload) {
     if (!payload) {
         return;
@@ -728,6 +828,15 @@ function bindEvents() {
     refs.btnAddEventRule.addEventListener("click", () => { createEventRuleRow("", ""); updateEventRulePreview(); });
     refs.btnApplyEventRules.addEventListener("click", applyEventRuleMappings);
     refs.btnFetchEventRules.addEventListener("click", loadEventRulesFromBackend);
+    refs.btnExportEventRules.addEventListener("click", exportEventRuleMappings);
+    refs.btnImportEventRules.addEventListener("click", () => refs.inputEventRulesFile.click());
+    refs.inputEventRulesFile.addEventListener("change", (event) => {
+        const target = event.target;
+        if (target instanceof HTMLInputElement && target.files && target.files[0]) {
+            importEventRuleMappingsFromFile(target.files[0]);
+            target.value = "";
+        }
+    });
     refs.btnTriggerStory.addEventListener("click", () => triggerEvent(1001, [state.world.day]));
     refs.btnTriggerCombat.addEventListener("click", () => triggerEvent(2001, [50]));
 
@@ -807,6 +916,15 @@ function bootstrap() {
 }
 
 bootstrap();
+
+
+
+
+
+
+
+
+
 
 
 
