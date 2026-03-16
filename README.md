@@ -19,6 +19,15 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . --target build_all -j
 ```
 
+### Windows Quick Build
+
+```powershell
+cd D:\Game\Game
+.\scripts\build_windows.ps1 -BuildDir build-vs2022 -BuildType Release
+```
+
+If you use Conda and hit MSBuild `Path/PATH` environment conflicts, run `conda deactivate` and open a fresh terminal before building.
+
 ## Run Backend Services
 
 ```bash
@@ -41,6 +50,21 @@ npm start
 
 - Algorithm Service: `50051`
 - Strategy Service: `50052`
+
+## Event-Rule Mapping
+
+Strategy service supports configurable event-to-rule mapping through:
+
+- Environment variable at startup: `STRATEGY_EVENT_RULE_MAP`
+- Runtime hot update via `UpdateWorldState` payload field `event_rule_map`
+
+Example env value:
+
+```bash
+STRATEGY_EVENT_RULE_MAP="1001=story_chapter_1;2001=combat_start;3001=quest_kill_monsters"
+```
+
+In Electron gameplay panel, use `事件规则映射` to edit and hot-apply mappings without restarting services.
 
 ## Repository Layout
 
