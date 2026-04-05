@@ -1,227 +1,423 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>幻境传说 Electron Client</title>
-    <link rel="stylesheet" href="./styles.css" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>婵°倗濮烽崑鐘活敋瑜旈妴鍌炲Ω閿曗偓椤曢亶鏌ｅΟ纭咁劅闁?- Electron 闂佽楠哥粻宥夊垂濞差亜鏄ユ繛鎴炴皑閸?/title>
+<link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-    <div class="app-shell">
-        <header class="top-bar">
-            <div class="brand">
-                <h1>幻境传说</h1>
-                <span>Fantasy Legend · Electron</span>
-            </div>
-            <div class="service-state" id="serviceState">服务检测中...</div>
-        </header>
-
-        <main class="main-area">
-            <section class="view view-active" id="viewMainMenu">
-                <div class="hero-card">
-                    <p class="subtitle">在破碎边境，写下你的传说</p>
-                    <h2>主菜单</h2>
-                    <div class="menu-grid">
-                        <button class="menu-btn" id="btnNewGame">新游戏</button>
-                        <button class="menu-btn" id="btnLoadGame">加载游戏</button>
-                        <button class="menu-btn" id="btnSettings">设置</button>
-                        <button class="menu-btn menu-danger" id="btnExit">退出</button>
-                    </div>
-                </div>
-            </section>
-
-            <section class="view" id="viewGameplay">
-                <aside class="left-panel">
-                    <div class="panel-block">
-                        <h3>角色信息</h3>
-                        <p id="playerName">名称: 无</p>
-                        <p id="playerProfession">职业: 无</p>
-                        <p id="playerLevel">等级: 1</p>
-                        <p id="playerHP">生命: 100 / 100</p>
-                        <p id="playerMP">法力: 60 / 60</p>
-                    </div>
-
-                    <div class="panel-block">
-                        <h3>世界状态</h3>
-                        <p id="gameChapter">章节: 新手村</p>
-                        <p id="gameLocation">地点: 晨风营地</p>
-                        <p id="gameTime">时间: Day 1</p>
-                        <p id="gameGold">金币: 100</p>
-                    </div>
-
-                    <div class="panel-block actions">
-                        <button class="side-btn" id="btnInventory">背包 (I)</button>
-                        <button class="side-btn" id="btnQuest">任务 (Q)</button>
-                        <button class="side-btn" id="btnSkillTree">技能 (K)</button>
-                        <button class="side-btn" id="btnSave">保存 (F5)</button>
-                        <button class="side-btn" id="btnBackMenu">返回主菜单 (Esc)</button>
-                    </div>
-
-                    <div class="panel-block">
-                        <h3>战斗模拟</h3>
-                        <div class="control-row">
-                            <label>攻击者</label>
-                            <input id="inputAttacker" class="tiny-input" type="number" value="1" min="1" />
-                            <label>防御者</label>
-                            <input id="inputDefender" class="tiny-input" type="number" value="2" min="1" />
-                            <label>技能</label>
-                            <input id="inputSkill" class="tiny-input" type="number" value="1" min="1" />
-                        </div>
-                        <div class="control-actions">
-                            <button class="side-btn compact" id="btnRunDamage">计算伤害</button>
-                            <button class="side-btn compact" id="btnRunAI">AI 决策</button>
-                        </div>
-                        <div class="panel-log" id="combatResult">等待模拟...</div>
-                    </div>
-
-                    <div class="panel-block">
-                        <h3>规则与事件</h3>
-                        <div class="control-actions">
-                            <button class="side-btn compact" id="btnReloadRules">刷新规则</button>
-                            <button class="side-btn compact" id="btnSyncState">同步状态</button>
-                            <button class="side-btn compact" id="btnTriggerStory">触发剧情事件</button>
-                            <button class="side-btn compact" id="btnTriggerCombat">触发战斗事件</button>
-                        </div>
-                        <div class="rule-list" id="ruleList"></div>
-                    </div>
-
-                    <div class="panel-block">
-                        <h3>后端状态快照</h3>
-                        <div class="snapshot-grid">
-                            <div>
-                                <p class="snapshot-title">全局变量</p>
-                                <div class="rule-list" id="serverVars"></div>
-                            </div>
-                            <div>
-                                <p class="snapshot-title">世界标记</p>
-                                <div class="rule-list" id="serverFlags"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="panel-block">
-                        <h3>状态调试面板</h3>
-                        <textarea id="debugWorldState" class="debug-textarea" spellcheck="false" placeholder="粘贴或编辑 world_state_json"></textarea>
-                        <div class="control-actions">
-                            <button class="side-btn compact" id="btnLoadStateJson">读取当前状态</button>
-                            <button class="side-btn compact" id="btnApplyStateJson">下发状态JSON</button>
-                        </div>
-                    </div>
-
-                    <div class="panel-block">
-                        <h3>事件规则映射</h3>
-                        <div class="version-row">
-                            <select id="eventRuleVersionSelect" class="tiny-input"></select>
-                            <button class="side-btn compact" id="btnSaveRuleVersion">保存版本</button>
-                            <button class="side-btn compact" id="btnApplyRuleVersion">应用版本</button>
-                            <button class="side-btn compact" id="btnRollbackRuleVersion">回滚发布</button>
-                        </div>
-                        <div class="mapping-grid" id="eventRuleRows"></div>
-                        <div class="control-actions">
-                            <button class="side-btn compact" id="btnAddEventRule">新增映射</button>
-                            <button class="side-btn compact" id="btnApplyEventRules">热更新映射</button>
-                            <button class="side-btn compact" id="btnFetchEventRules">拉取后端映射</button>
-                            <button class="side-btn compact" id="btnPreviewRuleDiff">Preview Diff</button>
-                            <button class="side-btn compact" id="btnExportEventRules">导出JSON</button>
-                            <button class="side-btn compact" id="btnImportEventRules">导入JSON</button>
-                        </div>
-                        <input id="inputEventRulesFile" type="file" accept=".json,application/json" class="hidden" />
-                        <div class="panel-log" id="eventRulePreview"></div>
-                    </div>
-                    <div class="panel-block">
-                        <h3>系统日志</h3>
-                        <div class="panel-log" id="eventLog"></div>
-                    </div>
-                </aside>
-
-                <section class="world-panel">
-                    <div class="world-header">
-                        <span id="playerPos">坐标: (0, 0)</span>
-                        <span>移动: WASD / 方向键</span>
-                    </div>
-                    <div id="worldMap" class="world-map">
-                        <div id="playerAvatar" class="player-avatar"></div>
-                    </div>
-                    <div class="skill-bar">
-                        <button class="skill-slot">1</button>
-                        <button class="skill-slot">2</button>
-                        <button class="skill-slot">3</button>
-                        <button class="skill-slot">4</button>
-                        <button class="skill-slot">5</button>
-                        <button class="skill-slot">6</button>
-                    </div>
-                </section>
-            </section>
-        </main>
-    </div>
-
-    <aside class="drawer" id="inventoryDrawer">
-        <div class="drawer-header">
-            <h3>背包</h3>
-            <button class="ghost-btn" id="closeInventory">关闭</button>
-        </div>
-        <div class="inventory-grid" id="inventoryGrid"></div>
-    </aside>
-
-    <div class="modal hidden" id="modalNewGame">
-        <div class="modal-card">
-            <h3>创建新角色</h3>
-            <label>角色名</label>
-            <input id="inputPlayerName" type="text" maxlength="20" placeholder="输入角色名" />
-            <label>职业</label>
-            <div class="profession-list">
-                <button class="profession selected" data-profession="warrior">战士</button>
-                <button class="profession" data-profession="mage">法师</button>
-                <button class="profession" data-profession="archer">弓箭手</button>
-            </div>
-            <div class="modal-actions">
-                <button id="createCharacter">开始游戏</button>
-                <button class="ghost-btn" data-close="modalNewGame">取消</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal hidden" id="modalLoadGame">
-        <div class="modal-card">
-            <h3>选择存档</h3>
-            <div class="save-list" id="saveList"></div>
-            <div class="modal-actions">
-                <button class="ghost-btn" data-close="modalLoadGame">关闭</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal hidden" id="modalSettings">
-        <div class="modal-card">
-            <h3>设置</h3>
-            <label>主音量</label>
-            <input id="volumeRange" type="range" min="0" max="100" value="70" />
-            <label>帧率上限</label>
-            <select id="fpsLimit">
-                <option value="60">60 FPS</option>
-                <option value="120">120 FPS</option>
-                <option value="144">144 FPS</option>
-            </select>
-            <div class="modal-actions">
-                <button id="saveSettings">保存设置</button>
-                <button class="ghost-btn" data-close="modalSettings">取消</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal hidden" id="modalRuleDiff">
-        <div class="modal-card modal-wide">
-            <h3>Mapping Diff Preview</h3>
-            <div id="ruleDiffContent" class="diff-content"></div>
-            <div class="modal-actions">
-                <button id="confirmRuleDiff">Confirm Publish</button>
-                <button class="ghost-btn" data-close="modalRuleDiff">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <div class="toast" id="toast"></div>
-
-    <script src="./renderer.js"></script>
+<div class="app-shell">
+<header class="top-bar">
+<div class="brand">
+<h1>婵°倗濮烽崑鐘活敋瑜旈妴鍌炲Ω閿曗偓椤曢亶鏌ｅΟ纭咁劅闁?/h1>
+<span>Fantasy Legend 闁?Electron Client</span>
+</div>
+<div class="service-state" id="serviceState">婵犳鍠楃换鎰緤閽樺鑰挎い蹇撳珋濞戙垹鐒垫い鎺戝閽冪喖鏌曟径娑㈡缂佺姵鐩弻娑㈠籍閹惧墎锛熸繝娈垮枟閹倿鐛埀?..</div>
+</header>
+<main class="main-area">
+<section class="view view-active" id="viewMainMenu">
+<div class="hero-card">
+<p class="subtitle">闂備線娼荤拹鐔煎礉韫囨蛋澶愬炊椤掍讲鎸勫┑鐐叉鐢偤鎮电捄渚唵鐟滃秹宕弶鎴旀灃闁挎柨澧界壕濂告煙閹规劕鐨哄☉鎾村絻闇夐柛蹇氬亹閺嗘﹢鏌嶈閸忔盯鎮為敂鐐殰閻熸瑥瀚禍銈嗙箾閹寸偞鐨戠憸鏉挎健閺屻倝宕崟顐熷亾閸洖鐒垫い鎴炲缁佺増銇勯銏☆棤闁归濮甸幏鍛村传閵夛箑澧ゅ┑鐐茬摠缁瞼鑺遍懖鈺冪婵せ鍋撻柟顖氬暣瀹曠喖顢旈崱娆忊偓鐐烘煟閻樺弶澶勯柣锝庝邯閸┾偓?/p>
+<h2>濠电偞鍨堕幐璇参ｉ幒鏇樹汗鐎广儱顦涵鈧?/h2>
+<div class="menu-grid">
+<button class="menu-btn" id="btnNewGame">闁诲孩顔栭崰鎺楀磻閹炬枼鏀芥い鏃傗拡閸庢劙鏌＄仦鏂よ含鐎规洘锕㈤獮鎺懳旀担鍝勭稐</button>
+<button class="menu-btn" id="btnLoadGame">闂佽崵濮村ú鈺咁敋瑜戦妵鎰板炊閳规儳浜炬繛鎴烆伆閹达箑违?/button>
+<button class="menu-btn" id="btnSettings">缂傚倷绶￠崹闈涚暦閻㈤潧鍨濋柧蹇氼潐婵ジ鏌涢幘妤€鎳忛悗?/button>
+<button class="menu-btn menu-danger" id="btnExit">闂傚倷绶￠崑鈧柛瀣崌閺屾盯骞嬮悩鎻掑闂佺粯鐗曢悥濂哥嵁?/button>
+</div>
+</div>
+</section>
+<section class="view" id="viewGameplay">
+<aside class="left-panel">
+<div class="panel-block">
+<h3>闂佽崵鍠愰悷锔炬暜閻斿摜鐝跺┑鐘叉处閸嬫劙鏌ら崫銉毌闁?/h3>
+<p id="playerName">闂備礁鎲￠懝鍓х矓閹壋鍙? 闂備礁鎼崯鐗堟叏閹绢喖绠栭柡鍥ュ灩缁€鍐煙閻戞﹩娈曢柣婵撶畵閺?/p>
+<p id="playerProfession">闂備胶鍘у畷顒佺附閺冨倻绠? 闂備胶鎳撻悺銊╂晪闂?/p>
+<p id="playerLevel">缂傚倷鐒︾粙鎴λ囨潏顭戞? 1</p>
+<p id="playerHP">HP: 100 / 100</p>
+<p id="playerMP">MP: 60 / 60</p>
+<p id="playerAttack">闂備浇銆€閸嬫捇鎮归崶銊ョ祷婵? 18</p>
+<p id="playerDefense">闂傚倸鍊搁崯顖濄亹閸愵亙鐒? 8</p>
+<p id="playerWeapon">婵犳鍠楃换鎰不閹存績鏋? 闂佽崵濮崇欢锟犲储閸撗冨灊鐎光偓閸曨剙鍓瑰銈嗘尵閸嬫盯鍩?/p>
+<p id="playerArmor">闂備胶顢婄紙浼村磹濡ゅ懎鏋? 闂備礁鎼崯顐﹀箠閹捐鐒垫い鎺嗗亾闁硅櫕鍔曡濠电姴娲﹂崑?/p>
+</div>
+<div class="panel-block">
+<h3>濠电偞鍨堕幐濠氭偋濠婂牆鐤炬い鎰堕檮閸嬫劙鏌ら崫銉毌闁?/h3>
+<p id="gameChapter">缂傚倷鐒﹀缁樻叏閻愵兛绻? 闂備礁鎼幊宀勫礉閹次诲骞樼紒妯侯€忛梺闈涱槶閸庢煡宕?/p>
+<p id="gameLocation">闂備線娼婚梽鍕珶閸℃稑纾? 闂備礁鎼幊宀勫礉閹次诲骞橀懡銈呯ウ闂佸憡鍔栬ぐ鍐棘?/p>
+<p id="gameTime">闂備礁鎼崯顐︽偉閻撳宫? 缂?1 濠?/p>
+<p id="gameGold">闂傚倷绀佸鍫曞垂閻㈢數鍗? 100</p>
+<p id="playerExp">EXP: 0</p>
+<p id="playerPotion">闂備浇鍋愰悺鏃堝垂闁秴绠? 2</p>
+</div>
+<div class="panel-block story-card">
+<h3>闂備礁鎲￠幐鍡涘礋椤愩垹顥嶅┑鐐村灦閹稿摜鑺辨總绋跨闁靛繈鍊曠粈?/h3>
+<div id="storySummary" class="panel-log">闂備礁鎲￠幐鍡涘礋椤愩垹顥嶉梻浣侯攰婵倝鈥﹂崼銉ｂ偓鍛存晜閸欍儳鍓ㄩ梺绯曞墲钃遍柍缁樻⒒缁辨帡鍩€椤掑嫬浼犻柛鏇ㄥ墲閸氼偊鏌℃径鍡樻珕闁荤啿鏅犲畷鎶芥倻閽樺）?/div>
+<div class="action-grid">
+<button class="side-btn compact" id="btnExplore">闂備浇顫夋禍浠嬪垂婵犳艾纾奸柕濞炬櫅缁€宀勬煕濠靛棗顏柛?/button>
+<button class="side-btn compact" id="btnRest">闂備浇袙閸嬫捇鏌曟径鍫濆姕闁告洘鍎抽湁闁稿繒鍘ч悘锕傛煛?/button>
+<button class="side-btn compact" id="btnUsePotion">濠电偠鎻紞鈧繛澶嬫礋瀵偊濡舵径瀣濡炪倖鐗楃粙鎺斺偓?/button>
+<button class="side-btn compact" id="btnAdvanceChapter">闂備浇顫夋禍浠嬪礉韫囨洘宕叉俊顖濆亹閸楁岸鏌ｅΟ鐑樻儓閾?/button>
+</div>
+<div class="choice-row">
+<select id="storyChoiceSelect" class="tiny-input"></select>
+<button class="side-btn compact" id="btnCommitChoice">缂備胶铏庨崣搴ㄥ窗濞戙埄鏁囬柤濮愬€栧畷澶嬨亜閺嶃劎鐭婃繛?/button>
+<button class="side-btn compact" id="btnStoryDecision">闂備礁鎲￠幐鍡涘礋椤愩垹顥嶉梻浣侯攰濞夋盯藝閹殿喒鍋?/button>
+<button class="side-btn compact" id="btnStoryReplay">闂備礁鎲￠幐鍡涘礋椤愩垹顥嶉梻浣规偠閸庢娊宕戦妶澶娢?/button>
+<button class="side-btn compact" id="btnChapterSummary">缂傚倷鐒﹀缁樻叏閻愵兛绻嗘い鎾卞灩缁犳垿鏌ゆ慨鎰偓妤€鈻?/button>
+<button class="side-btn compact" id="btnStoryGuide">闂備礁鎲￠幐鍡涘礋椤愩垹顥嶉梻浣告贡椤牆煤閵堝洦顫?/button>
+</div>
+<div id="choiceSummary" class="panel-log">闂佽崵濮崇拃锕傚垂閹惰棄鍚归幖杈剧稻鐎氭岸鎮楀☉娅虫垿锝為弽褉妲堥柟鎯у暱椤掋垽鎮介婵愭綈婵炶壈顕ч埥澶娢熼懖鈺侇槱闂佽崵濮崇欢锟犲窗閺囩姵顫曞ù鍏兼綑閸欏﹪鏌涢幘妞炬缁敻姊洪棃鈺勭闁告柨绻掗幑銏ゅ冀椤撶喓鍘掗柣蹇曞仧閸庣敻宕?/div>
+<div class="quest-list" id="questList"></div>
+</div>
+<div class="panel-block">
+<h3>闂備礁鎲￠懝鐐附閺冨牆纭€闁惧浚鍋嗛埢鏃堝箹濞ｎ剙鐏╅柣蹇撴喘濮婂鍩€?/h3>
+<div class="control-actions">
+<button class="side-btn compact" id="btnRecruitCompanion">闂備礁缍婇弨杈╃矙閹寸姭鍋撳顓犳噰鐎规洏鍎虫禒锕傛偂鎼达紕銈?/button>
+<button class="side-btn compact" id="btnQuest">闂備礁鎲＄敮锟犲绩闁秴钃熷┑鐘插暞閸欏繘鏌￠崘锝呬壕婵?/button>
+</div>
+<div class="party-list" id="partyList"></div>
+<div class="choice-row">
+<select id="companionSelect" class="tiny-input"></select>
+<button class="side-btn compact" id="btnTalentInfo">闂備礁鎼悮顐﹀磿閸愯鑰块柛娑欐綑閺勩儵鏌ｉ悢鍛婄凡闁诡喖顑夐弻鐔兼嚍閵夘喚鍔稿?/button>
+</div>
+<div class="action-grid">
+<button class="side-btn compact" id="btnTalentOffense">闁诲孩顔栭崰鏍箹椤愩倐鍋撻崹顐ゅ弨鐎殿喓鍔庨幏鐘诲箵閹烘挾妲?/button>
+<button class="side-btn compact" id="btnTalentGuard">闁诲孩顔栭崰鏍箹椤愩倐鍋撻崹顐ゅ弨婵﹤銈搁獮鎾诲箳閹寸偞娅?/button>
+<button class="side-btn compact" id="btnTalentSupport">闁诲孩顔栭崰鏍箹椤愩倐鍋撻崹顐ゅ弨鐎殿喓鍔戦、娑樷槈濡灝鍘?/button>
+<button class="side-btn compact" id="btnTalentAuto">闂備胶鍘ч〃搴㈢濠婂嫭鍙忛柍鍝勬噹缁€鍡涙煕閳╁啰鈽夐悽?/button>
+</div>
+</div>
+<div class="panel-block">
+<h3>闂備胶鎳撻悘鍫ュ磻閹剧粯鐓犻柧蹇ｅ亜閻忓﹦绱掑Δ鈧惌鍌氼嚕閹间礁绀嬫い鎾跺У閹?/h3>
+<div class="choice-row">
+<select id="skillSelect" class="tiny-input"></select>
+<button class="side-btn compact" id="btnCastSkill">闂備礁鎼崐鑺ユ叏閵堝妫樺〒姘ｅ亾妤犵偛閰ｉ崺鈧い鎺戝閸?/button>
+</div>
+<div class="choice-row">
+<button class="side-btn compact" id="btnCompanionSkill">闂備礁鎼崐鑺ユ叏閵堝妫樺〒姘ｅ亾鐎规洏鍎虫禒锕傛偂鎼达紕銈梻浣烘嚀閻忓牓宕戦幘缁樼厾?/button>
+<button class="side-btn compact" id="btnResetBuild">闂傚倷鐒﹁ぐ鍐矓閸洘鍋柛鈩冪☉閸戠娀鏌涢弴銊ュ箻闁?/button>
+</div>
+<div id="skillSummary" class="panel-log">闂備胶鎳撻悘鍫ュ磻閹剧粯鐓犻柛鎰ゴ閸嬫捇鎮ゆ担鍛婎唵闂備礁鎼€氼剛鑺卞ú顏勭劦妞ゆ垼娉曢ˇ锕傛煏閸パ屾Ш闁圭鍛亾閿濆骸浜濋柛鐘叉嚇閹兘寮村槌栨М闂佸綊鏀辨刊浠嬪Φ閹版澘绠婚柛鎰▕閺嬧偓闂備礁鎼鍛偓姘煎櫍閹搫顫濋崣妯煎墾闂佺硶鍓濊摫闁崇粯姊荤槐鎺楀焵椤掑嫬浼犻柛鏇ㄥ墲閸氼偊鏌℃径鍡樻珕闁荤啿鏅犲畷鎶芥倻閽樺）?/div>
+</div>
+<div class="panel-block">
+<h3>Boss 闂備胶鎳撻悺銊ㄦ懌缂備椒绌堕崝搴ｆ?/h3>
+<div class="control-actions">
+<button class="side-btn compact" id="btnStartBoss">闁诲孩顔栭崰鎺楀磻閹炬枼鏀?Boss 闂?/button>
+<button class="side-btn compact" id="btnStrikeBoss">闂備浇銆€閸嬫捇鎮归崶銊ョ祷婵?Boss</button>
+</div>
+<div id="bossStatus" class="panel-log">闁荤喐绮庢晶妤呭箰閸涘﹥娅犻柣妯哄悁閻掑﹥鎱ㄥ鍡楀箺鐎殿喗鎹囧鍫曞煛閸屾壕妲堥梺?Boss 闂備胶鎳撻悺銊ㄥ綘闂?/div>
+<div class="choice-row">
+<button class="side-btn compact" id="btnClearBossTimeline">婵犵數鍋為幐鎼佸箠閹版澘鐓橀柡宥庡幖缁狅絾淇婇婊呭笡闁诲繐绉归弻锟犲礃閵娧冪厽濠碘槅鍋夊▔鏇㈡儉?/button>
+<span class="snapshot-title" id="bossTurnInfo">闂備焦鎮堕崕鎶藉磻濞戙垹绠? -</span>
+</div>
+<div id="bossTimeline" class="panel-log">闂備胶鎳撻悺銊ㄦ懌闂佸搫顑囬崰鏍ь嚕椤曗偓瀹曞ジ寮撮悤鍌滃惞缂傚倷鐒﹂崕鎶藉Φ濡吋顫曞ù鍏兼綑閸欏﹪鏌涢幘妞炬缁敻姊洪棃鈺勭闁告柨绻掗幑銏ゅ冀椤撶喓鍘掗柣蹇曞仧閸庣敻宕?/div>
+</div>
+<div class="panel-block actions">
+<button class="side-btn" id="btnInventory">闂備胶鎳撻悘姘跺箰閸濄儲顫曢柟杈鹃檮閸ゅ嫰鎮橀悙鑸殿棄闁?(I)</button>
+<button class="side-btn" id="btnSkillTree">闂備胶鎳撻悘鍫ュ磻閹剧粯鐓犻悗鍦Т琚氶梺?(K)</button>
+<button class="side-btn" id="btnSave">濠电儑绲藉ú锔炬崲閸岀偞鍋ら柕濠忛檮娴溿倖绻涢幋鐏活亪顢?(F5)</button>
+<button class="side-btn" id="btnBackMenu">闂佸搫顦弲婊堝蓟閵娿儍娲冀閵娧€鏋栭梺鍝勫缁绘劗绱為崨瀛樼厱?(Esc)</button>
+<button class="side-btn" id="btnViewEndingReview">闂備礁鎼悮顐﹀磿閸愯鑰块柛娑卞灣绾惧ジ鏌熼幆褏锛嶆繝鈧弶娆剧唵閻犻缚娅ｈ倴濠?/button>
+</div>
+<div class="panel-block">
+<h3>闂備胶鎳撻悺銊ㄦ懌闂佸搫顑囬崰搴ょ亽闂佹枼鏅涢崯顐︽偟椤栫偞鐓?/h3>
+<div class="control-row">
+<label>闂備浇銆€閸嬫捇鎮归崶銊ョ祷婵絽锕弻?ID</label>
+<input id="inputAttacker" class="tiny-input" type="number" value="1" min="1" />
+<label>闂傚倸鍊搁崯顖濄亹閸愵亙鐒婂ù鐘差儐閸も偓?ID</label>
+<input id="inputDefender" class="tiny-input" type="number" value="2" min="1" />
+<label>闂備胶鎳撻悘鍫ュ磻閹剧粯鐓?ID</label>
+<input id="inputSkill" class="tiny-input" type="number" value="1" min="1" />
+</div>
+<div class="control-actions">
+<button class="side-btn compact" id="btnRunDamage">闂佽崵濮崇欢銈囨閺囥垺鍋╃紓浣姑閬嶆煏閸繃濯奸柛?/button>
+<button class="side-btn compact" id="btnRunAI">婵犵數鍋炲娆擃敄閸儲鍎?AI</button>
+</div>
+<div class="panel-log" id="combatResult">缂傚倷鐒︾粙鎴λ囬婊勵偨闁绘梻鍎ゆ刊濂告煥濞戞ê顏柡鍡╁墰缁辨挻鎷呯憴鍕瀺闂?..</div>
+</div>
+<div class="panel-block">
+<h3>闂佽崵鍠愰悷銉р偓姘煎墴瀹曞綊顢涘☉姘ｆ灃闁硅偐琛ラ崜婵嬪磹鏉堛劍鍙?/h3>
+<div class="control-actions">
+<button class="side-btn compact" id="btnReloadRules">闂備礁鎲＄敮锟犲绩闁秴钃熷┑鐘插閸犲棝鏌涢弴銊ヤ簻闁?/button>
+<button class="side-btn compact" id="btnSyncState">闂備礁鎲￠懝楣冨嫉椤掑嫷鏁嗛柣鎰劋閸嬫劙鏌ら崫銉毌闁?/button>
+<button class="side-btn compact" id="btnTriggerStory">闂佽崵鍠愰悷杈╃不閹达絻浜归柛宀€鍋涚粈鍫㈡喐鎼淬劌纾块煫鍥ㄦ⒒椤╂煡鎮楅敐鍌涙珕妞?/button>
+<button class="side-btn compact" id="btnTriggerCombat">闂佽崵鍠愰悷杈╃不閹达絻浜归柛宀€鍋涚粻锝嗕繆椤栨粎甯涢柣蹇撶Т闇夋繝濠傚枤閸庡孩绻?/button>
+</div>
+<div class="rule-list" id="ruleList"></div>
+</div>
+<div class="panel-block">
+<h3>闂備礁鎲￠懝鎯归悜绛嬫晜妞ゆ帒鍟伴悿鈧銈嗗姂閸婃洖顕?/h3>
+<div class="snapshot-grid">
+<div>
+<p class="snapshot-title">闂備胶顭堢换鍫ュ礉瀹€鍕剳妞ゆ帒瀚惌妤佹叏濡炶浜鹃梺?/p>
+<div class="rule-list" id="serverVars"></div>
+</div>
+<div>
+<p class="snapshot-title">濠电偞鍨堕幐濠氭偋濠婂牆鐤炬い鎰剁畱閸愨偓闂佹悶鍎烘禍鍫曞船?/p>
+<div class="rule-list" id="serverFlags"></div>
+</div>
+</div>
+</div>
+<div class="panel-block">
+<h3>闂備胶绮…鍫ュ春閺嶎厼鐒垫い鎴炲缁佷即鏌ｉ妸褍鏋旈柟?/h3>
+<textarea id="debugWorldState" class="debug-textarea" spellcheck="false" placeholder="闂佽崵濮村ú鈺咁敋瑜戦妵鎰板炊椤掆偓杩濇繛杈剧秬濞咃絽顪冩禒瀣骇闁割偆鍠庨悘锕傛煕閵婏絽濡块柛鎺撳笒铻ｉ柛顭戝枛閻?world_state JSON"></textarea>
+<div class="control-actions">
+<button class="side-btn compact" id="btnLoadStateJson">闂佽崵濮村ú鈺咁敋瑜戦妵鎰板炊椤忓倷姹楅梺瑙勫劤閸熷潡路閸涘瓨鐓熸俊顖氱仢閻撴劙鏌?/button>
+<button class="side-btn compact" id="btnApplyStateJson">闂佸湱鍘ч悺銊ヮ潖婵犳艾鏋侀柕鍫濐槹閸嬫劙鏌ら崫銉毌闁?JSON</button>
+</div>
+</div>
+<div class="panel-block">
+<h3>濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪灪閸犲棝鏌涢弴銊ヤ簻闁诲繒鍠栭弻锟犲礋椤撶倫銏ゆ煟?/h3>
+<div class="version-row">
+<select id="eventRuleVersionSelect" class="tiny-input"></select>
+<button class="side-btn compact" id="btnSaveRuleVersion">濠电儑绲藉ú锔炬崲閸岀偞鍋ら柕濞炬櫆閸嬪鏌涢銈呮瀾闁?/button>
+<button class="side-btn compact" id="btnApplyRuleVersion">闂佸湱鍘ч悺銊ヮ潖婵犳艾鏋侀柕鍫濐槹閸嬪鏌涢銈呮瀾闁?/button>
+<button class="side-btn compact" id="btnRollbackRuleVersion">闂備焦鎮堕崕鎶藉磻閻愰潧鍨濋柟缁㈠枟閸嬪鏌涢銈呮瀾闁?/button>
+</div>
+<div class="mapping-grid" id="eventRuleRows"></div>
+<div class="control-actions">
+<button class="side-btn compact" id="btnAddEventRule">闂備礁鎼崐鐟邦熆濮椻偓璺柛鎰靛枛閸欏﹪鏌ｅΟ鍨毢婵?/button>
+<button class="side-btn compact" id="btnApplyEventRules">闂備胶绮崺鍫ュ储閽樺娲锤濡も偓濡﹢鏌ｅΔ鈧悧濠呫€栭梺?/button>
+<button class="side-btn compact" id="btnFetchEventRules">闂備胶鎳撻崲鏌ニ囬婵勪汗闁搞儺鍓欑憴锕傚箹鏉堝墽绉靛ù鐓庡€块弻锟犲礋椤撶倫銏ゆ煟?/button>
+<button class="side-btn compact" id="btnPreviewRuleDiff">濠碘槅鍋呭妯尖偓姘煎灦閿濈偛顓奸崪浣告櫊濡炪倖妫侀崑鎰?/button>
+<button class="side-btn compact" id="btnExportEventRules">闂佽娴烽弫鎼佸储瑜斿畷?JSON</button>
+<button class="side-btn compact" id="btnImportEventRules">闂佽娴烽弫鎼佸储瑜斿畷?JSON</button>
+</div>
+<input id="inputEventRulesFile" type="file" accept=".json,application/json" class="hidden" />
+<div class="panel-log" id="eventRulePreview"></div>
+</div>
+<div class="panel-block">
+<h3>闂備礁鎲￠〃鍛崲鐎ｎ剛绀婇柡鍐ｅ亾缂佸顦伴幆鏃堝煡閸℃﹢銈梻?/h3>
+<div class="control-actions">
+<button class="side-btn compact" id="btnRefreshSideQuests">闂備礁鎲＄敮锟犲绩闁秴钃熷┑鐘叉搐缂佲晜銇勯弽銊х煀婵?/button>
+<button class="side-btn compact" id="btnCampfireStory">闂備浇袙閸嬫捇鏌曟竟顖氬€荤壕濠氭煟鎼达絾鏆╂い銏狅躬閹?/button>
+<button class="side-btn compact" id="btnBuildProject">闁诲海鍋ｉ崐婵堢磽濮橀鏁婇柡鍥ュ灩閹瑰爼鏌℃径濠勪虎闂傚懏锚椤啴濡堕崨顔跨濠?/button>
+</div>
+<p id="factionReputation">闂傚倸鍊搁崯鈺冨緤婵犳艾绠氶柍褜鍓欓…鍧楀捶椤撶儐鏆┑鐘亾? 闂佽娴烽幊鎾绘偋婵犲偊鑰挎繝濠傜墛閸も偓?0 | 濠电娀娼ч崐鍫曞磿閹绘帪鑰跨€规洖娲︽刊鍏笺亜閺冨洤鍚圭紒?0 | 闂備胶鍘ч〃搴㈢閻愬搫鏋侀弶鍫氭櫆閸嬫﹢鎮橀悙璺轰汗缂?0</p>
+<div class="panel-log" id="projectSummary">闂備礁鎲￠悧鏇㈠箹椤愶附鍋傛繛鍡樻尭绾偓闂婎偄娲ゅù椋庣矙婵犲洦鐓欓柤鎭掑労閻掔偓銇勯埡瀣閻庣數鍘ч～婵嬵敇閻斿弶鐏冪紓鍌欒閸嬫捇鏌涘┑鍡楊仾闂婎剦鍓熷鍫曞煛閸屾粍鍣伴梺闈╃悼閸忔ɑ淇?/div>
+<div class="quest-list" id="sideQuestList"></div>
+<div class="panel-log" id="journalLog">闂備礁鎼崯銊╁磿鏉堚晜宕查柡鍐ㄥ€烽悞濠囨煕閳╁啫鍤柛鐐插閹叉悂鎮ч崼鐔猴紱缂傚倸绉甸敃銏ゅ箚閸愵喖绀嬫い鎰╁灪濞呮棃姊婚崒姘仱闁哄懐鍋ゅ畷妯肩磼濡姘﹀Δ鐘靛仜缁ㄩ亶宕?/div>
+</div>
+<div class="panel-block">
+<h3 id="npcPanelTitle">NPC 濠电偛鐡ㄧ划宥囨暜閹烘挻鍙?/h3>
+<div class="control-actions">
+<button class="side-btn compact" id="btnOpenNpcDialog">闂備胶鎳撻悘姘跺箰閸濄儲顫?NPC 闂佽娴烽弫鎼併€佹繝鍥ㄥ剨?/button>
+</div>
+<div class="panel-log" id="npcSummary">闁荤喐绮庢晶妤呭箰閸涘﹥娅犻柣妯款嚙缁€宀勬煕濠靛棗顏柛妯兼暬閺?NPC 闂備胶顢婃慨銈夆€﹂崼銉ｂ偓鍛存晜閽樺鍤ゅ┑顔斤供閸樹粙鍩㈤弮鍌滅＜闁逞屽墴瀹曨偊宕熼鍐ㄦ儓闂佸搫顦弲婊堟偡閳哄懎闂柣鎴ｆ杩?/div>
+<div class="quest-list" id="npcList"></div>
+</div>
+<div class="panel-block">
+<h3>闂備礁鎽滈崰搴∥涘Δ鍐С?/h3>
+<div class="control-actions">
+<button class="side-btn compact" id="btnRefreshShop">闂備礁鎲＄敮锟犲绩闁秴钃熷┑鐘叉搐閻ゎ噣鏌涢埄鍐炬畼闁?/button>
+<button class="side-btn compact" id="btnBuyShopItem">闂佽崵濮甸崝锕傚储濞差亜绠梺顒€绉甸悞璇差熆鐠轰警妲奸柛姗嗗墴閺岋絽顪冪紒妯荤彅闂?/button>
+</div>
+<select id="shopItemSelect" class="tiny-input"></select>
+<div class="panel-log" id="shopSummary">闂備礁鎽滈崰搴∥涘Δ鍐С闁汇垻顭堢粻鐑樹繆椤栨侗鍎ユ繛璇х到闇夐柛蹇氬亹椤ｅ弶淇婇姘兼Ш缂侇喖鐗撳畷顐﹀礋椤掑啫鎯堥梺鍝勵槴閺呮粓鎮烽埡鍛棷闁绘垼妫勮繚?/div>
+</div>
+<div class="panel-block">
+<h3>闂傚倷绶￠崜姘躲€冮崼鐔告珷闁秆勵殕閻撱儱鈹戦悩鍐茬劰闁?/h3>
+<div class="control-actions">
+<button class="side-btn compact" id="btnForgeRelic">闂傚倷绀侀悘婵嬧€﹂悜钘夌劦妞ゆ帒鍊搁埢鍫澝归悩鍐插闁?/button>
+</div>
+<div class="panel-log" id="forgeSummary">闂傚倷绀侀悘婵嬧€﹂悜钘夌劦妞ゆ帒鍊搁瀷濡炪倖娲嶉弲鐘差嚕閻楀牊鍎熸繝闈涚墢閹插潡鎮峰鍛暭闁圭鎲￠弲鍫曟偐閸偄鐨梺鍛婃处閸撴盯鎮ラ崡鐏诲綊宕楅懖鈺婃殹濠碘槅鍨伴ˇ杈╁垝閸儱浼犻柛鏇ㄥ墲閸氼偊鏌℃径鍡樻珕闁荤啿鏅犲畷鎶芥倻閽樺）?/div>
+</div>
+<div class="panel-block">
+<h3>濠电偛鐡ㄧ划宀勵敄閸曨偀鏋庨柕蹇嬪€曠猾宥夋煏婢跺牆鍔ょ紒?/h3>
+<div class="panel-log" id="eventLog"></div>
+</div>
+</aside>
+<section class="world-panel">
+<div class="world-header">
+<span id="playerPos">闂備胶顫嬮崟顐㈩潔闂? (0, 0)</span>
+<span>缂傚倷绀侀ˇ鎶筋敋瑜庨幈? WASD / 闂備礁鎼崐濠氬箠閹捐绠栨繝濠傜墛閻?| 濠电偛鐡ㄩ崵搴ㄥ磹閹炬儼濮? E | 濠电偟顥愰崑鎰箾閳ь剟鏌? 闂備礁鎲￠悷銉╂嚐椤栫偛鍚规い鏇楀亾鐎规洜鍏樺鍫曞箰鎼达綆娲?/span>
+</div>
+<div id="worldMap" class="world-map">
+<div id="playerAvatar" class="player-avatar"></div>
+</div>
+<div class="skill-bar">
+<button class="skill-slot">1</button>
+<button class="skill-slot">2</button>
+<button class="skill-slot">3</button>
+<button class="skill-slot">4</button>
+<button class="skill-slot">5</button>
+<button class="skill-slot">6</button>
+</div>
+</section>
+</section>
+</main>
+</div>
+<aside class="drawer" id="inventoryDrawer">
+<div class="drawer-header">
+<h3>闂備胶鍘ч崯鍧楁嚐椤栨壕鍋?/h3>
+<button class="ghost-btn" id="closeInventory">闂備胶顭堢换鎴炵箾婵犲伣?/button>
+</div>
+<div class="inventory-grid" id="inventoryGrid"></div>
+</aside>
+<div class="modal hidden" id="modalNewGame">
+<div class="modal-card">
+<h3>闂備礁鎲＄敮妤冪矙閹寸姷纾介柟鎹愵嚙濡﹢鏌熷畡鎵劸婵炵》绻濋弻?/h3>
+<label>闂佽崵鍠愰悷锔炬暜閻斿摜鐝跺┑鐘叉搐鐟欙妇鈧箍鍎卞▔?/label>
+<input id="inputPlayerName" type="text" maxlength="20" placeholder="闂佸搫顦悧濠囧箰閹间礁鐭楅柛鈩兩戞刊鎾煟濡櫣浠涢柣锝変憾閹嘲鈻庨幇顒傤儎婵犮垻鎳撻敃顏勭暦? />
+<label>闂備胶鍘у畷顒佺附閺冨倻绠旈柣鏂垮悑閻掕顭跨捄渚剰妞?/label>
+<div class="profession-list">
+<button class="profession selected" data-profession="warrior">闂備胶鎳撻悺銊╂晪闂?/button>
+<button class="profession" data-profession="mage">婵犵數鍋涢ˇ鏉棵洪弽顐ょ當闁?/button>
+<button class="profession" data-profession="archer">婵犵數鍋為幑鍥疾閼碱剚顐?/button>
+</div>
+<div class="modal-actions">
+<button id="createCharacter">闁诲孩顔栭崰鎺楀磻閹炬枼鏀芥い鏃傗拡閸庢劙鏌ｉ弽褏鍩ｆ?/button>
+<button class="ghost-btn" data-close="modalNewGame">闂備礁鎲￠悷锕傛偋濡ゅ啰鐭?/button>
+</div>
+</div>
+</div>
+<div class="modal hidden" id="modalLoadGame">
+<div class="modal-card">
+<h3>闂佽崵濮村ú鈺咁敋瑜戦妵鎰板炊閳规儳浜炬繛鎴烆伆閹达箑违?/h3>
+<div class="save-list" id="saveList"></div>
+<div class="modal-actions">
+<button class="ghost-btn" data-close="modalLoadGame">闂備胶顭堢换鎴炵箾婵犲伣?/button>
+</div>
+</div>
+</div>
+<div class="modal hidden" id="modalSettings">
+<div class="modal-card">
+<h3>缂傚倷绶￠崹闈涚暦閻㈤潧鍨濋柧蹇氼潐婵ジ鏌涢幘妤€鎳忛悗?/h3>
+<label>闂傚倸鍊搁敃銉︾箾婵犲洤闂?/label>
+<input id="volumeRange" type="range" min="0" max="100" value="70" />
+<label>闂佹眹鍩勯崹搴ㄥ川椤撯€承ｅ┑鐐村灦閹告悂鏁冮鍕电€?/label>
+<select id="fpsLimit">
+<option value="60">60 FPS</option>
+<option value="120">120 FPS</option>
+<option value="144">144 FPS</option>
+</select>
+<div class="modal-actions">
+<button id="saveSettings">濠电儑绲藉ú锔炬崲閸岀偞鍋ら柕濞у嫬顎涢梺鍛婃寙閸涱喚鈧?/button>
+<button class="ghost-btn" data-close="modalSettings">闂備礁鎲￠悷锕傛偋濡ゅ啰鐭?/button>
+</div>
+</div>
+</div>
+<div class="modal hidden" id="modalStoryDecision">
+<div class="modal-card modal-wide">
+<h3 id="storyDecisionTitle">闂備礁鎲￠幐鍡涘礋椤愩垹顥嶉梻浣侯攰濞夋盯藝閹殿喒鍋?/h3>
+<div id="storyDecisionDesc" class="panel-log"></div>
+<div id="storyDecisionOptions" class="mapping-grid"></div>
+<div class="modal-actions">
+<button class="ghost-btn" data-close="modalStoryDecision">闂備胶顭堢换鎴炵箾婵犲伣?/button>
+</div>
+</div>
+</div>
+<div class="modal hidden" id="modalStoryReplay">
+<div class="modal-card modal-wide">
+<h3>闂備礁鎲￠幐鍡涘礋椤愩垹顥嶉梻浣规偠閸庢娊宕戦妶澶娢?/h3>
+<div class="choice-row">
+<input id="inputStoryReplaySearch" class="tiny-input" placeholder="闂備胶鎳撻崥瀣垝鎼淬劌纾奸柕濞炬櫅缁€鍫㈡喐鎼淬劌纾块煫鍥ㄧ☉缁€鍌炴煙閹澘袚闁哄棙鐩幃? />
+<select id="selectStoryReplayType" class="tiny-input">
+<option value="all">闂備胶顭堢换鍫ュ礉閹达箑纾块悗闈涙憸鐏忕敻鎮归崶顏勭毢闁?/option>
+<option value="arc">濠电偞鍨堕幑浣哥暦閻㈢鍚归幖娣妽閸ゅ秹鏌涚仦鍓х煀濞?/option>
+<option value="decision">闂備礁鎲￠幐鍡涘礋椤愩垹顥嶉梻浣侯攰濞夋盯藝閹殿喒鍋?/option>
+<option value="event">濠电偛鐡ㄧ划宀勵敄閸曨偀鏋?/option>
+<option value="chapter">缂傚倷鐒﹀缁樻叏閻愵兛绻?/option>
+</select>
+<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;">
+<input id="toggleStoryPinnedOnly" type="checkbox" />濠电偛顕慨鎾箠韫囨拹鐔稿緞瀹€鈧惌鍡涙煣韫囨挻璐￠柡瀣€搁—?</label>
+<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;">
+<input id="toggleStoryGroupByChapter" type="checkbox" checked />闂備礁婀遍…鍫ニ囬柆宥嗗仧闁绘垼濮ら崵宥夋煕鐏炴崘澹橀柣搴ゅ吹缁?</label>
+</div>
+<div id="storyReplayList" class="diff-content"></div>
+<div class="modal-actions">
+<button id="btnExportStoryReplayTxt">闂佽娴烽弫鎼佸储瑜斿畷?TXT</button>
+<button id="btnExportStoryReplayJson">闂佽娴烽弫鎼佸储瑜斿畷?JSON</button>
+<button class="ghost-btn" data-close="modalStoryReplay">闂備胶顭堢换鎴炵箾婵犲伣?/button>
+</div>
+</div>
+</div>
+<div class="modal hidden" id="modalStoryGuide">
+<div class="modal-card modal-wide">
+<h3>闂備礁鎲￠幐鍡涘礋椤愩垹顥嶉梻浣告贡椤牆煤閵堝洦顫?/h3>
+<div id="storyGuideContent" class="diff-content"></div>
+<div class="modal-actions">
+<button id="btnStoryGuideAction">闂備礁婀遍悷鎶藉幢閳哄倹鏉搁柣搴ｅ仯閸婃繄绱撳棰濇晩闁告稒娼欑粈澶愭煏婵炲灝鈧绮?/button>
+<button class="ghost-btn" data-close="modalStoryGuide">闂備胶顭堢换鎴炵箾婵犲伣?/button>
+</div>
+</div>
+</div>
+<div class="modal hidden" id="modalChapterSummary">
+<div class="modal-card modal-wide">
+<h3>缂傚倷鐒﹀缁樻叏閻愵兛绻嗘い鎾卞灩缁犳垿鏌ゆ慨鎰偓妤€鈻?/h3>
+<div class="choice-row">
+<label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:8px;">
+<input id="toggleChapterCompare" type="checkbox" checked />闂備礁鎲￠崙褰掑垂閹惰棄鏋侀柕鍫濇川閸楁岸鏌ｅΟ鐑樻儓閾伙繝鏌ｆ惔婵堢シ妞ゎ偄顦甸幆?</label>
+</div>
+<div class="choice-row">
+<select id="compareChapterA" class="tiny-input"></select>
+<select id="compareChapterB" class="tiny-input"></select>
+</div>
+<div id="compareChapterResult" class="panel-log"></div>
+<div id="chapterTrendContent" class="panel-log"></div>
+<div id="chapterSummaryContent" class="diff-content"></div>
+<div class="modal-actions">
+<button id="btnExportChapterSummaryTxt">闂佽娴烽弫鎼佸储瑜斿畷?TXT</button>
+<button id="btnExportChapterSummaryJson">闂佽娴烽弫鎼佸储瑜斿畷?JSON</button>
+<button class="ghost-btn" data-close="modalChapterSummary">闂備胶顭堢换鎴炵箾婵犲伣?/button>
+</div>
+</div>
+</div>
+<div class="modal hidden" id="modalNpcDialog">
+<div class="modal-card modal-wide">
+<h3 id="npcDialogTitle">NPC 闂佽娴烽弫鎼併€佹繝鍥ㄥ剨?/h3>
+<div id="npcDialogBody" class="diff-content"></div>
+<div id="npcActionSummary" class="panel-log">NPC 闂備胶鎳撻悘婵堢矓瀹曞洨绀婇柡鍐ㄧ墕缁犵儤淇婇娑卞劌婵炶绲介湁闁稿繗鍋愰。鍙変繆椤栨凹妲虹紒顔肩墦瀹曨偊宕熼鍐ㄦ儓闂佸搫顦弲婊堟偡閳哄懎闂柣鎴ｆ杩?/div>
+<div class="modal-actions npc-actions">
+<button id="btnNpcTalk">濠电偛鐡ㄩ崵搴ㄥ磹濞戙垺鍎?/button>
+<button id="btnNpcQuest">濠电姵顔栭崰妤€顫忕憴鍕珷?/button>
+<button id="btnNpcTrade">濠电偛鐡ㄩ崵搴ㄥ磹閺嶎灛?/button>
+<button id="btnNpcTrain">闂佽崵濮崇欢锟犲储閸撗冨灊?/button>
+<button id="btnNpcGift">闂佽崵濮嶉崨顓夈儵鏌?/button>
+<button class="ghost-btn" data-close="modalNpcDialog">闂備胶顭堢换鎴炵箾婵犲伣?/button>
+</div>
+</div>
+</div>
+<div class="modal hidden" id="modalRuleDiff">
+<div class="modal-card modal-wide">
+<h3>闂佽崵鍠愰悷銉р偓姘煎墴瀹曞綊顢涘鐓庢櫊濡炪倖妫侀崑鎰閽樺）娑㈠级閸噮浼傚?/h3>
+<div id="ruleDiffContent" class="diff-content"></div>
+<div class="modal-actions">
+<button id="confirmRuleDiff">缂備胶铏庨崣搴ㄥ窗濞戙埄鏁囧┑鐘宠壘閻鏌熺€涙绠樻い?/button>
+<button class="ghost-btn" data-close="modalRuleDiff">闂備礁鎲￠悷锕傛偋濡ゅ啰鐭?/button>
+</div>
+</div>
+</div>
+<div class="modal hidden" id="modalEndingReview">
+<div class="modal-card modal-wide">
+<h3>缂傚倸鍊烽悞锕傚箰閹间焦鍎戞い鎺嶇缁剁偟鈧箍鍎卞ú锔惧?/h3>
+<div id="endingReviewContent" class="diff-content"></div>
+<div class="modal-actions">
+<button id="btnExportEndingTxt">闂佽娴烽弫鎼佸储瑜斿畷?TXT</button>
+<button id="btnExportEndingJson">闂佽娴烽弫鎼佸储瑜斿畷?JSON</button>
+<button class="ghost-btn" data-close="modalEndingReview">闂備胶顭堢换鎴炵箾婵犲伣?/button>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="./modules/game-data.js"></script>
+<script src="./modules/game-services.js"></script>
+<script src="./modules/local-state.js"></script>
+<script src="./modules/gameplay-runtime.js"></script>
+<script src="./modules/progression-runtime.js"></script>
+<script src="./modules/story-runtime.js"></script>
+<script src="./modules/ui-panels.js"></script>
+<script src="./modules/npc-story-guide.js"></script>
+<script src="./modules/world-map.js"></script>
+<script src="./modules/combat-system.js"></script>
+<script src="./modules/story-archive.js"></script>
+<script src="./modules/ui-text.js"></script>
+<script src="./modules/backend-sync.js"></script>
+<script src="./modules/app-core.js"></script>
+<script src="./modules/app-shell.js"></script>
+<script src="./renderer.js"></script>
+<script src="./modules/chapter-rumors.js"></script>
 </body>
 </html>

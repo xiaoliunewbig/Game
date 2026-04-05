@@ -1,1219 +1,481 @@
-﻿const SETTINGS_KEY = "fantasy_legend_settings_v1";
-const EVENT_RULE_KEY = "fantasy_legend_event_rule_map_v1";
-const EVENT_RULE_VERSIONS_KEY = "fantasy_legend_event_rule_versions_v1";
-const EVENT_RULE_PUBLISH_HISTORY_KEY = "fantasy_legend_event_rule_publish_history_v1";
+const {
+  CHAPTERS,
+  JOBS,
+  SKILL_LIBRARY,
+  COMPANION_ARCHETYPES,
+  STORY_EVENTS,
+  CHAPTER_STORYLINES,
+  CHAPTER_ARCS,
+  BOSS_PROFILES,
+  CHAPTER_DECISIONS,
+  CAMPFIRE_SCENES,
+  NPC_PROFILES,
+  NPC_QUEST_TEMPLATES,
+  NPC_STORY_CHAINS,
+  NPC_RELATIONSHIP_EVENTS,
+  NPC_TRADE_PROFILES,
+  CHAPTER_MISSIONS,
+  CHAPTER_SUPPORT_OPERATIONS,
+  REGION_POI_LIBRARY
+} = window.FantasyGameData || {};
+
+if (!window.FantasyGameData) {
+  throw new Error("FantasyGameData module failed to load.");
+}
+
+const {
+  applyChineseStoryContent,
+  applyChineseUiText
+} = window.FantasyUiTextModule || {};
+
+if (!window.FantasyUiTextModule) {
+  throw new Error("FantasyUiTextModule failed to load.");
+}
+
+const {
+  applyDecisionReward,
+  buildChapterSummaryReport,
+  buildDecisionImpactDetails,
+  evaluateEndingNarrative,
+  exportChapterSummary,
+  exportEndingReview,
+  exportStoryReplay,
+  getPendingChapterDecision,
+  openChapterSummaryModal,
+  openEndingReviewModal,
+  openStoryReplayModal,
+  pushStoryCard,
+  renderChapterSummary,
+  renderStoryReplay
+} = window.FantasyStoryArchiveModule || {};
+
+if (!window.FantasyStoryArchiveModule) {
+  throw new Error("FantasyStoryArchiveModule failed to load.");
+}
+
+const formatRewardInline = window.FantasyStoryArchiveModule?.formatRewardInline;
+
+const {
+  createLocalStateModule
+} = window.FantasyLocalStateModule || {};
+
+if (!window.FantasyLocalStateModule) {
+  throw new Error("FantasyLocalStateModule failed to load.");
+}
+
+const {
+  createGameplayRuntimeModule
+} = window.FantasyGameplayRuntimeModule || {};
+
+if (!window.FantasyGameplayRuntimeModule) {
+  throw new Error("FantasyGameplayRuntimeModule failed to load.");
+}
+
+const {
+  createProgressionRuntimeModule
+} = window.FantasyProgressionRuntimeModule || {};
+
+if (!window.FantasyProgressionRuntimeModule) {
+  throw new Error("FantasyProgressionRuntimeModule failed to load.");
+}
+
+const {
+  createStoryRuntimeModule
+} = window.FantasyStoryRuntimeModule || {};
+
+if (!window.FantasyStoryRuntimeModule) {
+  throw new Error("FantasyStoryRuntimeModule failed to load.");
+}
+
+const {
+  createUiPanelsModule
+} = window.FantasyUiPanelsModule || {};
+
+if (!window.FantasyUiPanelsModule) {
+  throw new Error("FantasyUiPanelsModule failed to load.");
+}
+
+
+const {
+  createBackendSyncModule
+} = window.FantasyBackendSyncModule || {};
+
+if (!window.FantasyBackendSyncModule) {
+  throw new Error("FantasyBackendSyncModule failed to load.");
+}
+
+const {
+  createAppShellModule
+} = window.FantasyAppShellModule || {};
+
+if (!window.FantasyAppShellModule) {
+  throw new Error("FantasyAppShellModule failed to load.");
+}
+
+
+const {
+  createAppCoreModule
+} = window.FantasyAppCoreModule || {};
+
+if (!window.FantasyAppCoreModule) {
+  throw new Error("FantasyAppCoreModule failed to load.");
+}
+
 
 const state = {
-    currentView: "mainMenu",
-    player: {
-        name: "无",
-        profession: "warrior",
-        level: 1,
-        hp: 100,
-        mp: 60,
-        gold: 100
-    },
-    world: {
-        chapter: "新手村",
-        location: "晨风营地",
-        day: 1,
-        x: 360,
-        y: 200,
-        step: 16
-    },
-    selectedProfession: "warrior",
-    settings: {
-        volume: 70,
-        fpsLimit: "60"
-    },
-    rules: [],
-    pendingRulePublish: null
+  currentView: "mainMenu",
+  player: {
+    name: "\u65e0\u540d\u5192\u9669\u8005",
+    profession: "warrior",
+    level: 1,
+    exp: 0,
+    hp: 130,
+    mp: 50,
+    maxHp: 130,
+    maxMp: 50,
+    gold: 100,
+    potions: 2,
+    baseAttack: 18,
+    baseDefense: 12,
+    attackBonus: 0,
+    defenseBonus: 0,
+    gear: { weapon: "\u8bad\u7ec3\u77ed\u5251", armor: "\u76ae\u7532" }
+  },
+  world: { chapter: CHAPTERS[0].name, location: "\u6668\u98ce\u5e73\u539f", day: 1, x: 280, y: 180, step: 18, regionX: 0, regionY: 0 },
+  story: { chapterIndex: 0, progress: { explore: 0, artifact: 0, boss: 0 }, route: "balanced", choice: "" },
+  combat: { active: false, bossName: "", hp: 0, maxHp: 0, timeline: [] },
+  content: { artifactShards: 0, forgedRelics: 0, shop: [] },
+  settings: { volume: 70, fpsLimit: "60" },
+  selectedProfession: "warrior",
+  rules: [],
+  factions: { wardens: 0, arcanum: 0, freeguild: 0 },
+  sideQuests: [],
+  journal: [],
+  party: { roster: [], activeId: "", nextId: 1 },
+  talents: { offense: 0, guard: 0, support: 0, points: 0 },
+  skillLoadout: ["quick_strike", "guard_break", "aether_burst"],
+  storyRuntime: { beats: 0, completedSideQuests: 0, decisions: {}, arc: {}, storyCards: [], chapterReports: [], pinnedStoryCardIds: [], collapsedReplayChapters: [], missionProgress: {}, missionRewards: [], poiVisited: [] },
+  projects: { built: 0, operationsCompleted: [] },
+  npcs: { activeMap: [], selectedId: "", trust: {}, claimedQuestRewards: [], spawnKey: "", chainFlags: {}, chapterRewards: [], relationshipEvents: [] }
 };
 
-const refs = {
-    viewMainMenu: document.getElementById("viewMainMenu"),
-    viewGameplay: document.getElementById("viewGameplay"),
-    serviceState: document.getElementById("serviceState"),
-    worldMap: document.getElementById("worldMap"),
-    playerAvatar: document.getElementById("playerAvatar"),
-    playerPos: document.getElementById("playerPos"),
-    toast: document.getElementById("toast"),
-    inventoryDrawer: document.getElementById("inventoryDrawer"),
-    inventoryGrid: document.getElementById("inventoryGrid"),
-    modalNewGame: document.getElementById("modalNewGame"),
-    modalLoadGame: document.getElementById("modalLoadGame"),
-    modalSettings: document.getElementById("modalSettings"),
-    saveList: document.getElementById("saveList"),
-    inputPlayerName: document.getElementById("inputPlayerName"),
-    btnNewGame: document.getElementById("btnNewGame"),
-    btnLoadGame: document.getElementById("btnLoadGame"),
-    btnSettings: document.getElementById("btnSettings"),
-    btnExit: document.getElementById("btnExit"),
-    btnInventory: document.getElementById("btnInventory"),
-    btnQuest: document.getElementById("btnQuest"),
-    btnSkillTree: document.getElementById("btnSkillTree"),
-    btnSave: document.getElementById("btnSave"),
-    btnBackMenu: document.getElementById("btnBackMenu"),
-    closeInventory: document.getElementById("closeInventory"),
-    createCharacter: document.getElementById("createCharacter"),
-    saveSettings: document.getElementById("saveSettings"),
-    volumeRange: document.getElementById("volumeRange"),
-    fpsLimit: document.getElementById("fpsLimit"),
-    inputAttacker: document.getElementById("inputAttacker"),
-    inputDefender: document.getElementById("inputDefender"),
-    inputSkill: document.getElementById("inputSkill"),
-    btnRunDamage: document.getElementById("btnRunDamage"),
-    btnRunAI: document.getElementById("btnRunAI"),
-    btnReloadRules: document.getElementById("btnReloadRules"),
-    btnSyncState: document.getElementById("btnSyncState"),
-    btnTriggerStory: document.getElementById("btnTriggerStory"),
-    btnTriggerCombat: document.getElementById("btnTriggerCombat"),
-    combatResult: document.getElementById("combatResult"),
-    ruleList: document.getElementById("ruleList"),
-    eventLog: document.getElementById("eventLog"),
-    serverVars: document.getElementById("serverVars"),
-    serverFlags: document.getElementById("serverFlags"),
-    debugWorldState: document.getElementById("debugWorldState"),
-    btnLoadStateJson: document.getElementById("btnLoadStateJson"),
-    btnApplyStateJson: document.getElementById("btnApplyStateJson"),
-    eventRuleRows: document.getElementById("eventRuleRows"),
-    btnAddEventRule: document.getElementById("btnAddEventRule"),
-    btnApplyEventRules: document.getElementById("btnApplyEventRules"),
-    btnFetchEventRules: document.getElementById("btnFetchEventRules"),
-    btnExportEventRules: document.getElementById("btnExportEventRules"),
-    btnImportEventRules: document.getElementById("btnImportEventRules"),
-    inputEventRulesFile: document.getElementById("inputEventRulesFile"),
-    eventRulePreview: document.getElementById("eventRulePreview"),
-    eventRuleVersionSelect: document.getElementById("eventRuleVersionSelect"),
-    btnSaveRuleVersion: document.getElementById("btnSaveRuleVersion"),
-    btnApplyRuleVersion: document.getElementById("btnApplyRuleVersion"),
-    btnRollbackRuleVersion: document.getElementById("btnRollbackRuleVersion"),
-    btnPreviewRuleDiff: document.getElementById("btnPreviewRuleDiff"),
-    modalRuleDiff: document.getElementById("modalRuleDiff"),
-    ruleDiffContent: document.getElementById("ruleDiffContent"),
-    confirmRuleDiff: document.getElementById("confirmRuleDiff")
-};
+const ids = [
+  "viewMainMenu","viewGameplay","serviceState","worldMap","playerAvatar","playerPos","toast","inventoryDrawer","inventoryGrid",
+  "modalNewGame","modalLoadGame","modalSettings","modalRuleDiff","saveList","inputPlayerName","btnNewGame","btnLoadGame","btnSettings","btnExit",
+  "btnInventory","btnQuest","btnSkillTree","btnSave","btnBackMenu","closeInventory","createCharacter","saveSettings","volumeRange","fpsLimit",
+  "inputAttacker","inputDefender","inputSkill","btnRunDamage","btnRunAI","btnReloadRules","btnSyncState","btnTriggerStory","btnTriggerCombat",
+  "combatResult","ruleList","eventLog","serverVars","serverFlags","debugWorldState","btnLoadStateJson","btnApplyStateJson",
+  "eventRuleRows","btnAddEventRule","btnApplyEventRules","btnFetchEventRules","btnExportEventRules","btnImportEventRules","inputEventRulesFile",
+  "eventRulePreview","eventRuleVersionSelect","btnSaveRuleVersion","btnApplyRuleVersion","btnRollbackRuleVersion","btnPreviewRuleDiff","ruleDiffContent","confirmRuleDiff",
+  "playerExp","playerPotion","storySummary","questList","btnExplore","btnRest","btnUsePotion","btnAdvanceChapter","storyChoiceSelect","btnCommitChoice","choiceSummary",
+  "partyList","btnRecruitCompanion","companionSelect","btnTalentInfo","btnTalentOffense","btnTalentGuard","btnTalentSupport","btnTalentAuto",
+  "skillSelect","btnCastSkill","btnCompanionSkill","btnResetBuild","skillSummary","btnStartBoss","btnStrikeBoss","bossStatus","bossTimeline","bossTurnInfo","btnClearBossTimeline",
+  "sideQuestList","journalLog","factionReputation","projectSummary","btnRefreshSideQuests","btnCampfireStory","btnBuildProject","shopItemSelect","shopSummary","btnRefreshShop","btnBuyShopItem","btnForgeRelic","forgeSummary","btnViewEndingReview","modalEndingReview","endingReviewContent","btnExportEndingTxt","btnExportEndingJson","btnStoryDecision","btnStoryReplay","btnChapterSummary","btnStoryGuide","modalStoryGuide","storyGuideContent","btnStoryGuideAction","btnExportStoryReplayTxt","btnExportStoryReplayJson","btnExportChapterSummaryTxt","btnExportChapterSummaryJson","selectStoryReplayType","inputStoryReplaySearch","toggleStoryPinnedOnly","toggleStoryGroupByChapter","toggleChapterCompare","compareChapterA","compareChapterB","compareChapterResult","chapterTrendContent","modalStoryDecision","storyDecisionTitle","storyDecisionDesc","storyDecisionOptions","modalStoryReplay","storyReplayList","modalChapterSummary","chapterSummaryContent","btnOpenNpcDialog","npcSummary","npcList","modalNpcDialog","npcDialogTitle","npcDialogBody","npcActionSummary","btnNpcTalk","btnNpcQuest","btnNpcTrade","btnNpcTrain","btnNpcGift"
+];
 
-function appendLog(message) {
-    const now = new Date();
-    const stamp = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
-    const line = `[${stamp}] ${message}`;
-    refs.eventLog.textContent = refs.eventLog.textContent
-        ? `${line}\n${refs.eventLog.textContent}`
-        : line;
+const refs = Object.fromEntries(ids.map((id) => [id, document.getElementById(id)]));
+
+const MAX_LOG_LINES = 140;
+const recentLogs = [];
+let storyGuideRecommendedAction = null;
+let activeNpcDialogId = "";
+function safeOn(el, evt, fn) { if (el) el.addEventListener(evt, fn); }
+function setTextIfChanged(el, text) {
+  if (!el) return;
+  if (el.textContent !== text) el.textContent = text;
+}
+function showToast(msg) { if (!refs.toast) return; refs.toast.textContent = msg; refs.toast.classList.add("show"); clearTimeout(showToast.t); showToast.t = setTimeout(() => refs.toast.classList.remove("show"), 1800); }
+
+function appendLog(msg) {
+  if (!refs.eventLog) return;
+  const t = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+  const line = `[${t}] ${msg}`;
+  recentLogs.unshift(line);
+  if (recentLogs.length > MAX_LOG_LINES) recentLogs.length = MAX_LOG_LINES;
+  refs.eventLog.textContent = recentLogs.join("\n");
 }
 
-function showToast(message) {
-    refs.toast.textContent = message;
-    refs.toast.classList.add("show");
-    window.clearTimeout(showToast.timer);
-    showToast.timer = window.setTimeout(() => refs.toast.classList.remove("show"), 1800);
-}
-
-function setView(viewName) {
-    state.currentView = viewName;
-    refs.viewMainMenu.classList.toggle("view-active", viewName === "mainMenu");
-    refs.viewGameplay.classList.toggle("view-active", viewName === "gameplay");
-}
-
-function openModal(id) {
-    document.getElementById(id).classList.remove("hidden");
-}
-
-function closeModal(id) {
-    document.getElementById(id).classList.add("hidden");
-    if (id === "modalRuleDiff") {
-        state.pendingRulePublish = null;
-    }
-}
-
-function updateHUD() {
-    document.getElementById("playerName").textContent = `名称: ${state.player.name}`;
-    const professionMap = { warrior: "战士", mage: "法师", archer: "弓箭手" };
-    document.getElementById("playerProfession").textContent = `职业: ${professionMap[state.player.profession] || "无"}`;
-    document.getElementById("playerLevel").textContent = `等级: ${state.player.level}`;
-    document.getElementById("playerHP").textContent = `生命: ${state.player.hp} / 100`;
-    document.getElementById("playerMP").textContent = `法力: ${state.player.mp} / 60`;
-    document.getElementById("gameChapter").textContent = `章节: ${state.world.chapter}`;
-    document.getElementById("gameLocation").textContent = `地点: ${state.world.location}`;
-    document.getElementById("gameTime").textContent = `时间: Day ${state.world.day}`;
-    document.getElementById("gameGold").textContent = `金币: ${state.player.gold}`;
-    refs.playerPos.textContent = `坐标: (${state.world.x}, ${state.world.y})`;
-    refs.playerAvatar.style.left = `${state.world.x}px`;
-    refs.playerAvatar.style.top = `${state.world.y}px`;
-}
-
-function loadSettings() {
-    try {
-        const raw = localStorage.getItem(SETTINGS_KEY);
-        if (!raw) {
-            refs.volumeRange.value = state.settings.volume;
-            refs.fpsLimit.value = state.settings.fpsLimit;
-            return;
-        }
-
-        const parsed = JSON.parse(raw);
-        state.settings.volume = Number(parsed.volume || state.settings.volume);
-        state.settings.fpsLimit = String(parsed.fpsLimit || state.settings.fpsLimit);
-        refs.volumeRange.value = String(state.settings.volume);
-        refs.fpsLimit.value = state.settings.fpsLimit;
-    } catch {
-        refs.volumeRange.value = String(state.settings.volume);
-        refs.fpsLimit.value = state.settings.fpsLimit;
-    }
-}
-
-function persistSettings() {
-    const data = {
-        volume: Number(refs.volumeRange.value),
-        fpsLimit: refs.fpsLimit.value
-    };
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(data));
-    state.settings.volume = data.volume;
-    state.settings.fpsLimit = data.fpsLimit;
-}
-
-function applyStateJson(stateJson) {
-    if (!stateJson) {
-        return;
-    }
-
-    try {
-        const parsed = JSON.parse(stateJson);
-        if (parsed.global_variables) {
-            const vars = parsed.global_variables;
-            if (typeof vars.player_level === "number") {
-                state.player.level = vars.player_level;
-            }
-            if (typeof vars.player_exp === "number") {
-                state.player.gold = vars.player_exp;
-            }
-            if (typeof vars.story_progress === "number") {
-                state.world.day = Math.max(1, vars.story_progress + 1);
-            }
-        }
-
-        if (typeof parsed.chapter === "string") {
-            state.world.chapter = parsed.chapter;
-        }
-        if (typeof parsed.location === "string") {
-            state.world.location = parsed.location;
-        }
-        if (typeof parsed.day === "number") {
-            state.world.day = Math.max(1, parsed.day);
-        }
-
-        if (parsed.player && typeof parsed.player === "object") {
-            if (typeof parsed.player.name === "string" && parsed.player.name) {
-                state.player.name = parsed.player.name;
-            }
-            if (typeof parsed.player.profession === "string") {
-                state.player.profession = parsed.player.profession;
-            }
-            if (typeof parsed.player.hp === "number") {
-                state.player.hp = parsed.player.hp;
-            }
-            if (typeof parsed.player.mp === "number") {
-                state.player.mp = parsed.player.mp;
-            }
-            if (typeof parsed.player.gold === "number") {
-                state.player.gold = parsed.player.gold;
-            }
-        }
-
-        if (parsed.position && typeof parsed.position === "object") {
-            if (typeof parsed.position.x === "number") {
-                state.world.x = parsed.position.x;
-            }
-            if (typeof parsed.position.y === "number") {
-                state.world.y = parsed.position.y;
-            }
-        }
-
-        if (Array.isArray(parsed.active_events) && parsed.active_events.length > 0) {
-            appendLog(`Active events: ${parsed.active_events.join(", ")}`);
-        }
-    } catch {
-        appendLog("Failed to parse world state json");
-    }
-}
-
-function renderRules() {
-    refs.ruleList.innerHTML = "";
-    if (state.rules.length === 0) {
-        refs.ruleList.textContent = "暂无规则";
-        return;
-    }
-
-    const topRules = state.rules.slice(0, 8);
-    topRules.forEach((rule) => {
-        const item = document.createElement("div");
-        item.className = "rule-item";
-        item.textContent = `[${rule.category}] ${rule.rule_id}`;
-        refs.ruleList.appendChild(item);
-    });
-}
-
-function renderKeyValueList(container, mapObj) {
-    container.innerHTML = "";
-    const entries = Object.entries(mapObj || {});
-
-    if (entries.length === 0) {
-        container.textContent = "无数据";
-        return;
-    }
-
-    entries.slice(0, 12).forEach(([key, value]) => {
-        const item = document.createElement("div");
-        item.className = "rule-item";
-        item.textContent = `${key}: ${value}`;
-        container.appendChild(item);
-    });
-}
-
-async function syncServerState() {
-    try {
-        const [globalVarsResp, flagsResp] = await Promise.all([
-            window.gameApi.queryGameState({ query_type: "global_vars", entity_id: 0 }),
-            window.gameApi.queryGameState({ query_type: "flags", entity_id: 0 })
-        ]);
-
-        const globalVars = globalVarsResp.world_state?.global_variables || {};
-        const flags = flagsResp.world_state?.world_flags || {};
-
-        renderKeyValueList(refs.serverVars, globalVars);
-        renderKeyValueList(refs.serverFlags, flags);
-        appendLog(`Synced state snapshot: ${Object.keys(globalVars).length} vars, ${Object.keys(flags).length} flags`);
-    } catch (error) {
-        appendLog(`Sync state failed: ${error.details || error.message}`);
-        showToast(`状态同步失败: ${error.details || error.message}`);
-    }
-}
-
-async function loadCurrentStateJson() {
-    try {
-        const response = await window.gameApi.queryGameState({ query_type: "world", entity_id: 0 });
-        refs.debugWorldState.value = response.state_json || "{}";
-        hydrateEventRulesFromState(response.state_json);
-        appendLog("Loaded world_state_json into debug panel");
-    } catch (error) {
-        showToast(`读取状态失败: ${error.details || error.message}`);
-        appendLog(`Load state json failed: ${error.details || error.message}`);
-    }
-}
-
-async function applyDebugWorldState() {
-    const raw = (refs.debugWorldState.value || "").trim();
-    if (!raw) {
-        showToast("请输入或读取状态JSON");
-        return;
-    }
-
-    try {
-        JSON.parse(raw);
-    } catch {
-        showToast("JSON 格式错误");
-        return;
-    }
-
-    try {
-        await window.gameApi.updateWorldState({ world_state_json: raw });
-        applyStateJson(raw);
-        await syncServerState();
-        updateHUD();
-        appendLog("Applied debug world_state_json");
-        showToast("状态下发成功");
-    } catch (error) {
-        showToast(`状态下发失败: ${error.details || error.message}`);
-        appendLog(`Apply state json failed: ${error.details || error.message}`);
-    }
-}
-function createEventRuleRow(eventId = "", ruleId = "") {
-    const row = document.createElement("div");
-    row.className = "mapping-row";
-    row.innerHTML = `
-        <input class="tiny-input mapping-id" type="number" min="1" placeholder="event id" value="${eventId}" />
-        <input class="tiny-input mapping-rule" type="text" placeholder="rule id" value="${ruleId}" />
-        <button class="ghost-btn mapping-remove" type="button">删</button>
-    `;
-
-    row.querySelector(".mapping-remove")?.addEventListener("click", () => {
-        row.remove();
-        updateEventRulePreview();
-    });
-
-    row.querySelectorAll("input").forEach((input) => {
-        input.addEventListener("input", updateEventRulePreview);
-    });
-
-    refs.eventRuleRows.appendChild(row);
-}
-
-function collectEventRuleMap() {
-    const rows = [];
-    refs.eventRuleRows.querySelectorAll(".mapping-row").forEach((row) => {
-        const idInput = row.querySelector(".mapping-id");
-        const ruleInput = row.querySelector(".mapping-rule");
-        if (!(idInput instanceof HTMLInputElement) || !(ruleInput instanceof HTMLInputElement)) {
-            return;
-        }
-
-        rows.push({
-            eventIdRaw: idInput.value.trim(),
-            ruleId: ruleInput.value.trim()
-        });
-    });
-    return rows;
-}
-
-function validateEventRuleRows(rows) {
-    const seen = new Set();
-    const map = {};
-    const ruleIdRegex = /^[A-Za-z0-9_:-]+$/;
-
-    for (const row of rows) {
-        if (!row.eventIdRaw && !row.ruleId) {
-            continue;
-        }
-
-        if (!row.eventIdRaw || !row.ruleId) {
-            return { ok: false, message: "event id 与 rule id 必须同时填写", map: {} };
-        }
-
-        const eventId = Number(row.eventIdRaw);
-        if (!Number.isInteger(eventId) || eventId <= 0) {
-            return { ok: false, message: `无效 event id: ${row.eventIdRaw}`, map: {} };
-        }
-
-        if (!ruleIdRegex.test(row.ruleId)) {
-            return { ok: false, message: `rule id 含非法字符: ${row.ruleId}`, map: {} };
-        }
-
-        const key = String(eventId);
-        if (seen.has(key)) {
-            return { ok: false, message: `重复 event id: ${key}`, map: {} };
-        }
-        seen.add(key);
-        map[key] = row.ruleId;
-    }
-
-    return { ok: true, message: "", map };
-}
-
-function updateEventRulePreview() {
-    const validation = validateEventRuleRows(collectEventRuleMap());
-    if (!validation.ok) {
-        refs.eventRulePreview.textContent = `INVALID: ${validation.message}`;
-        return;
-    }
-
-    const map = validation.map;
-    const pairs = Object.entries(map).map(([id, rule]) => `${id}=${rule}`);
-    refs.eventRulePreview.textContent = pairs.length > 0
-        ? `ENV: ${pairs.join(";")}`
-        : "ENV: <empty>";
-}
-
-function persistEventRuleMap(map) {
-    localStorage.setItem(EVENT_RULE_KEY, JSON.stringify(map));
-}
-
-function loadPersistedEventRuleMap() {
-    try {
-        const raw = localStorage.getItem(EVENT_RULE_KEY);
-        if (!raw) {
-            return {};
-        }
-        const parsed = JSON.parse(raw);
-        if (!parsed || typeof parsed !== "object") {
-            return {};
-        }
-        return parsed;
-    } catch {
-        return {};
-    }
-}
-
-function persistEventRuleVersions(versions) {
-    localStorage.setItem(EVENT_RULE_VERSIONS_KEY, JSON.stringify(versions));
-}
-
-function loadPersistedEventRuleVersions() {
-    try {
-        const raw = localStorage.getItem(EVENT_RULE_VERSIONS_KEY);
-        if (!raw) {
-            return [];
-        }
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) {
-            return [];
-        }
-
-        return parsed
-            .filter((item) => item && typeof item === "object" && item.map && typeof item.map === "object")
-            .map((item) => ({
-                id: String(item.id || `version_${Date.now()}`),
-                label: String(item.label || "Untitled"),
-                createdAt: String(item.createdAt || new Date().toISOString()),
-                map: item.map
-            }));
-    } catch {
-        return [];
-    }
-}
-
-function persistPublishHistory(history) {
-    localStorage.setItem(EVENT_RULE_PUBLISH_HISTORY_KEY, JSON.stringify(history));
-}
-
-function loadPublishHistory() {
-    try {
-        const raw = localStorage.getItem(EVENT_RULE_PUBLISH_HISTORY_KEY);
-        if (!raw) {
-            return [];
-        }
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) {
-            return [];
-        }
-
-        return parsed
-            .filter((item) => item && typeof item === "object" && item.map && typeof item.map === "object")
-            .map((item) => ({
-                at: String(item.at || new Date().toISOString()),
-                map: item.map
-            }));
-    } catch {
-        return [];
-    }
-}
-
-function setEventRuleRowsFromMap(mapping) {
-    refs.eventRuleRows.innerHTML = "";
-    Object.entries(mapping || {}).forEach(([id, rule]) => {
-        createEventRuleRow(String(id), String(rule));
-    });
-    updateEventRulePreview();
-}
-
-function renderRuleVersionOptions() {
-    if (!(refs.eventRuleVersionSelect instanceof HTMLSelectElement)) {
-        return;
-    }
-
-    const versions = loadPersistedEventRuleVersions();
-    refs.eventRuleVersionSelect.innerHTML = "";
-
-    if (versions.length === 0) {
-        const empty = document.createElement("option");
-        empty.value = "";
-        empty.textContent = "暂无版本";
-        refs.eventRuleVersionSelect.appendChild(empty);
-        return;
-    }
-
-    versions.forEach((version) => {
-        const option = document.createElement("option");
-        option.value = version.id;
-        option.textContent = version.label;
-        refs.eventRuleVersionSelect.appendChild(option);
-    });
-}
-
-function saveCurrentRuleVersion() {
-    const validation = validateEventRuleRows(collectEventRuleMap());
-    if (!validation.ok) {
-        showToast(validation.message);
-        return;
-    }
-
-    const map = validation.map;
-    if (Object.keys(map).length === 0) {
-        showToast("当前没有可保存的映射");
-        return;
-    }
-
-    const now = new Date();
-    const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")} ${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
-    const version = {
-        id: `v_${Date.now()}`,
-        label: `${stamp} (${Object.keys(map).length} items)`,
-        createdAt: now.toISOString(),
-        map
-    };
-
-    const versions = loadPersistedEventRuleVersions();
-    versions.unshift(version);
-    const capped = versions.slice(0, 20);
-    persistEventRuleVersions(capped);
-    renderRuleVersionOptions();
-    if (refs.eventRuleVersionSelect instanceof HTMLSelectElement) {
-        refs.eventRuleVersionSelect.value = version.id;
-    }
-    appendLog(`Saved rule version: ${version.label}`);
-    showToast("映射版本已保存");
-}
-
-async function applySelectedRuleVersion() {
-    if (!(refs.eventRuleVersionSelect instanceof HTMLSelectElement)) {
-        return;
-    }
-
-    const selected = refs.eventRuleVersionSelect.value;
-    if (!selected) {
-        showToast("请选择版本");
-        return;
-    }
-
-    const versions = loadPersistedEventRuleVersions();
-    const target = versions.find((item) => item.id === selected);
-    if (!target) {
-        showToast("版本不存在");
-        return;
-    }
-
-    setEventRuleRowsFromMap(target.map);
-    openRuleDiffModal(target.map, "version");
-}
-
-function recordPublishedRuleMap(map) {
-    const history = loadPublishHistory();
-    history.unshift({
-        at: new Date().toISOString(),
-        map
-    });
-    persistPublishHistory(history.slice(0, 30));
-}
-
-async function rollbackPublishedRuleVersion() {
-    const history = loadPublishHistory();
-    if (history.length < 2) {
-        showToast("没有可回滚的发布版本");
-        return;
-    }
-
-    const target = history[1];
-    setEventRuleRowsFromMap(target.map);
-    openRuleDiffModal(target.map, "rollback");
-}
-function buildEventRuleMetaPayload() {
-    return {
-        event_rule_versions: loadPersistedEventRuleVersions(),
-        event_rule_publish_history: loadPublishHistory()
-    };
-}
-
-function buildRuleDiffText(currentMap, nextMap) {
-    const current = currentMap || {};
-    const next = nextMap || {};
-
-    const keys = new Set([...Object.keys(current), ...Object.keys(next)]);
-    const sorted = Array.from(keys).sort((a, b) => Number(a) - Number(b));
-
-    const lines = [];
-    sorted.forEach((key) => {
-        const oldRule = current[key];
-        const newRule = next[key];
-        if (oldRule === undefined && newRule !== undefined) {
-            lines.push('+ [' + key + '] ' + newRule);
-            return;
-        }
-        if (oldRule !== undefined && newRule === undefined) {
-            lines.push('- [' + key + '] ' + oldRule);
-            return;
-        }
-        if (oldRule !== newRule) {
-            lines.push('~ [' + key + '] ' + oldRule + ' -> ' + newRule);
-        }
-    });
-
-    return lines.length > 0 ? lines.join('\n') : 'No mapping changes';
-}
-
-function openRuleDiffModal(targetMap, source) {
-    const currentMap = loadPersistedEventRuleMap();
-    refs.ruleDiffContent.textContent = buildRuleDiffText(currentMap, targetMap);
-    state.pendingRulePublish = { map: targetMap, source };
-    openModal('modalRuleDiff');
-}
-
-function requestManualRulePublish() {
-    const validation = validateEventRuleRows(collectEventRuleMap());
-    if (!validation.ok) {
-        showToast(validation.message);
-        return;
-    }
-
-    if (Object.keys(validation.map).length === 0) {
-        showToast('Please add at least one mapping');
-        return;
-    }
-
-    openRuleDiffModal(validation.map, 'manual');
-}
-
-async function loadEventRuleMetaFromBackend() {
-    try {
-        const response = await window.gameApi.queryGameState({ query_type: 'event_rule_meta', entity_id: 0 });
-        const parsed = JSON.parse(response.state_json || '{}');
-
-        if (Array.isArray(parsed.event_rule_versions)) {
-            persistEventRuleVersions(parsed.event_rule_versions);
-            renderRuleVersionOptions();
-        }
-        if (Array.isArray(parsed.event_rule_publish_history)) {
-            persistPublishHistory(parsed.event_rule_publish_history);
-        }
-
-        appendLog('Fetched event_rule_meta from backend');
-    } catch (error) {
-        appendLog('Fetch event_rule_meta skipped: ' + (error.details || error.message));
-    }
-}
-function hydrateEventRulesFromState(stateJson) {
-    if (!stateJson) {
-        return;
-    }
-
-    try {
-        const parsed = JSON.parse(stateJson);
-        const mapping = parsed.event_rule_map;
-        if (!mapping || typeof mapping !== "object") {
-            return;
-        }
-
-        setEventRuleRowsFromMap(mapping);
-        persistEventRuleMap(mapping);
-    } catch {
-    }
-}
-
-async function loadEventRulesFromBackend() {
-    try {
-        const response = await window.gameApi.queryGameState({ query_type: "event_rule_map", entity_id: 0 });
-        const raw = response.state_json || "{}";
-        hydrateEventRulesFromState(raw);
-        appendLog("Fetched event_rule_map from backend");
-    } catch (error) {
-        showToast(`拉取映射失败: ${error.details || error.message}`);
-        appendLog(`Fetch event_rule_map failed: ${error.details || error.message}`);
-    }
-}
-
-async function applyEventRuleMappings(mapOverride = null, source = "manual") {
-    const validation = mapOverride ? { ok: true, message: "", map: mapOverride } : validateEventRuleRows(collectEventRuleMap());
-    if (!validation.ok) {
-        showToast(validation.message);
-        return;
-    }
-
-    const mapping = validation.map;
-    if (Object.keys(mapping).length === 0) {
-        showToast("Please add at least one mapping");
-        return;
-    }
-
-    try {
-        const payload = {
-            event_rule_map: mapping,
-            ...buildEventRuleMetaPayload()
-        };
-        await window.gameApi.updateWorldState({ world_state_json: JSON.stringify(payload) });
-        refs.debugWorldState.value = JSON.stringify(payload, null, 2);
-        persistEventRuleMap(mapping);
-        recordPublishedRuleMap(mapping);
-        appendLog(`Hot updated event_rule_map (${source}): ${Object.keys(mapping).length} items`);
-        showToast(source === "manual" ? "Mapping hot update succeeded" : "Version mapping published");
-    } catch (error) {
-        showToast(`Mapping hot update failed: ${error.details || error.message}`);
-        appendLog(`Apply event_rule_map failed: ${error.details || error.message}`);
-    }
-}
-
-function exportEventRuleMappings() {
-    const validation = validateEventRuleRows(collectEventRuleMap());
-    if (!validation.ok) {
-        showToast(validation.message);
-        return;
-    }
-
-    const payload = {
-        event_rule_map: validation.map
-    };
-
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `event_rule_map_${Date.now()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    appendLog("Exported event rule map to json");
-}
-
-function importEventRuleMappingsFromFile(file) {
-    if (!file) {
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-        try {
-            const parsed = JSON.parse(String(reader.result || "{}"));
-            const mapping = parsed.event_rule_map;
-            if (!mapping || typeof mapping !== "object") {
-                showToast("Missing event_rule_map in imported file");
-                return;
-            }
-
-            setEventRuleRowsFromMap(mapping);
-            persistEventRuleMap(mapping);
-            appendLog(`Imported event rule map from file: ${Object.keys(mapping).length}`);
-            showToast("Import mapping succeeded");
-        } catch {
-            showToast("Import failed: invalid JSON format");
-        }
-    };
-    reader.readAsText(file);
-}
-
-function applyBootstrapData(payload) {
-    if (!payload) {
-        return;
-    }
-
-    const health = payload.health;
-    if (health) {
-        const alg = health.algorithm.ok ? "Algorithm OK" : `Algorithm ERR: ${health.algorithm.error}`;
-        const stg = health.strategy.ok ? "Strategy OK" : `Strategy ERR: ${health.strategy.error}`;
-        refs.serviceState.textContent = `${alg} | ${stg}`;
-    }
-
-    if (payload.state?.state_json) {
-        applyStateJson(payload.state.state_json);
-        refs.debugWorldState.value = payload.state.state_json;
-        hydrateEventRulesFromState(payload.state.state_json);
-    }
-
-    if (payload.rules && Array.isArray(payload.rules.rules)) {
-        state.rules = payload.rules.rules;
-        renderRules();
-        appendLog(`Loaded rules: ${payload.rules.rules.length}`);
-    }
-
-    updateHUD();
-}
-
-async function reloadRules() {
-    try {
-        const response = await window.gameApi.getGameRules({
-            category: "all",
-            active_only: true
-        });
-        state.rules = Array.isArray(response.rules) ? response.rules : [];
-        renderRules();
-        showToast(`规则刷新完成: ${state.rules.length}`);
-        appendLog(`Rules reloaded: ${state.rules.length}`);
-    } catch (error) {
-        showToast(`规则刷新失败: ${error.details || error.message}`);
-    }
-}
-
-async function runDamageSimulation() {
-    const attacker = Number(refs.inputAttacker.value || 1);
-    const defender = Number(refs.inputDefender.value || 2);
-    const skill = Number(refs.inputSkill.value || 1);
-
-    try {
-        const result = await window.gameApi.calculateDamage({
-            attacker_id: attacker,
-            defender_id: defender,
-            skill_id: skill
-        });
-
-        refs.combatResult.textContent = `伤害 ${result.damage} | 暴击 ${result.is_critical ? "是" : "否"} | 效果 ${result.effect}`;
-        appendLog(`Damage sim: ${attacker}->${defender} skill ${skill}, dmg=${result.damage}`);
-    } catch (error) {
-        refs.combatResult.textContent = `计算失败: ${error.details || error.message}`;
-        appendLog(`Damage sim failed: ${error.details || error.message}`);
-    }
-}
-
-async function runAIDecision() {
-    try {
-        const result = await window.gameApi.aiDecision({
-            npc_id: Number(refs.inputDefender.value || 2),
-            context: [
-                state.world.x,
-                state.player.hp,
-                0,
-                state.player.level
-            ]
-        });
-
-        refs.combatResult.textContent = `AI 行为 ${result.action_id} | 置信度 ${Number(result.confidence || 0).toFixed(2)} | ${result.description}`;
-        appendLog(`AI decision: action=${result.action_id}, confidence=${result.confidence}`);
-    } catch (error) {
-        refs.combatResult.textContent = `AI 失败: ${error.details || error.message}`;
-        appendLog(`AI decision failed: ${error.details || error.message}`);
-    }
-}
-
-async function triggerEvent(eventId, params) {
-    try {
-        const result = await window.gameApi.triggerEvent({ event_id: eventId, params });
-        appendLog(`Event ${eventId} => triggered=${result.triggered}`);
-        showToast(`事件 ${eventId} 已触发`);
-
-        if (result.result_json) {
-            appendLog(`Event payload: ${result.result_json}`);
-        }
-
-        await syncServerState();
-    } catch (error) {
-        appendLog(`Event ${eventId} failed: ${error.details || error.message}`);
-        showToast(`事件触发失败: ${error.details || error.message}`);
-    }
-}
-
-function buildWorldTiles() {
-    const tileSize = 48;
-    const cols = Math.ceil(refs.worldMap.clientWidth / tileSize);
-    const rows = Math.ceil(refs.worldMap.clientHeight / tileSize);
-
-    const frag = document.createDocumentFragment();
-    for (let r = 0; r < rows; r += 1) {
-        const row = document.createElement("div");
-        row.className = "world-row";
-        for (let c = 0; c < cols; c += 1) {
-            const tile = document.createElement("div");
-            tile.className = "world-tile";
-            tile.style.backgroundColor = (c + r) % 2 === 0 ? "#2f5a3d" : "#366947";
-            row.appendChild(tile);
-        }
-        frag.appendChild(row);
-    }
-
-    refs.worldMap.prepend(frag);
-
-    [
-        { x: 120, y: 100, size: 42, color: "#2f7a3a" },
-        { x: 300, y: 240, size: 32, color: "#8d8d8d" },
-        { x: 620, y: 160, size: 50, color: "#307f48" },
-        { x: 520, y: 320, size: 30, color: "#848484" }
-    ].forEach((node) => {
-        const div = document.createElement("div");
-        div.className = "map-ornament";
-        div.style.left = `${node.x}px`;
-        div.style.top = `${node.y}px`;
-        div.style.width = `${node.size}px`;
-        div.style.height = `${node.size}px`;
-        div.style.background = node.color;
-        refs.worldMap.appendChild(div);
-    });
-}
-
-function buildInventory() {
-    refs.inventoryGrid.innerHTML = "";
-    for (let i = 0; i < 24; i += 1) {
-        const slot = document.createElement("div");
-        slot.className = "inventory-item";
-        slot.textContent = i < 6 ? `物品 ${i + 1}` : "空";
-        refs.inventoryGrid.appendChild(slot);
-    }
-}
-
-function buildSaveSlots() {
-    refs.saveList.innerHTML = "";
-    for (let i = 0; i < 10; i += 1) {
-        const item = document.createElement("div");
-        item.className = "save-item";
-        item.innerHTML = `<span>存档 ${i + 1}</span><button data-slot="${i}">读取</button>`;
-        refs.saveList.appendChild(item);
-    }
-
-    refs.saveList.addEventListener("click", async (event) => {
-        const target = event.target;
-        if (!(target instanceof HTMLButtonElement) || !target.dataset.slot) {
-            return;
-        }
-
-        const slot = Number(target.dataset.slot);
-        try {
-            const response = await window.gameApi.queryGameState({ query_type: "player", entity_id: slot });
-            applyStateJson(response.state_json);
-            showToast(`已加载存档 ${slot + 1}`);
-            setView("gameplay");
-            closeModal("modalLoadGame");
-            updateHUD();
-            await syncServerState();
-            appendLog(`Loaded save slot: ${slot + 1}`);
-        } catch (error) {
-            showToast(`读取失败: ${error.details || error.message}`);
-        }
-    });
-}
-
-function movePlayer(dx, dy) {
-    if (state.currentView !== "gameplay") {
-        return;
-    }
-
-    const maxX = refs.worldMap.clientWidth - refs.playerAvatar.clientWidth;
-    const maxY = refs.worldMap.clientHeight - refs.playerAvatar.clientHeight;
-    state.world.x = Math.max(0, Math.min(maxX, state.world.x + dx));
-    state.world.y = Math.max(0, Math.min(maxY, state.world.y + dy));
-    updateHUD();
-}
-
-async function bootstrapFromBackend() {
-    try {
-        const payload = await window.gameApi.bootstrapGame();
-        applyBootstrapData(payload);
-        await loadEventRulesFromBackend();
-        await loadEventRuleMetaFromBackend();
-        await syncServerState();
-        appendLog("Bootstrap completed");
-    } catch (error) {
-        refs.serviceState.textContent = `Bootstrap failed: ${error.message}`;
-        appendLog(`Bootstrap failed: ${error.message}`);
-    }
-}
-
-function bindEvents() {
-    refs.btnNewGame.addEventListener("click", () => openModal("modalNewGame"));
-    refs.btnLoadGame.addEventListener("click", () => openModal("modalLoadGame"));
-    refs.btnSettings.addEventListener("click", () => openModal("modalSettings"));
-    refs.btnExit.addEventListener("click", () => window.close());
-
-    refs.btnInventory.addEventListener("click", () => refs.inventoryDrawer.classList.add("open"));
-    refs.closeInventory.addEventListener("click", () => refs.inventoryDrawer.classList.remove("open"));
-
-    refs.btnQuest.addEventListener("click", async () => {
-        await reloadRules();
-        showToast("任务与规则已更新");
-    });
-
-    refs.btnSkillTree.addEventListener("click", async () => {
-        try {
-            const response = await window.gameApi.getSkillTree({
-                character_id: 1,
-                learned_skills: [1, 2]
-            });
-            showToast(`技能节点: ${response.skills.length}`);
-            appendLog(`Skill tree loaded: ${response.skills.length}`);
-        } catch (error) {
-            showToast(`技能树请求失败: ${error.details || error.message}`);
-        }
-    });
-
-    refs.btnSave.addEventListener("click", async () => {
-        try {
-            const worldState = {
-                global_variables: {
-                    player_level: state.player.level,
-                    player_exp: state.player.gold,
-                    story_progress: Math.max(0, state.world.day - 1)
-                },
-                world_flags: {
-                    in_combat: false,
-                    tutorial_complete: true
-                },
-                active_events: [],
-                chapter: state.world.chapter,
-                location: state.world.location,
-                day: state.world.day,
-                player: state.player,
-                position: { x: state.world.x, y: state.world.y },
-                settings: state.settings
-            };
-
-            await window.gameApi.updateWorldState({
-                world_state_json: JSON.stringify(worldState)
-            });
-            await syncServerState();
-            showToast("保存成功");
-            appendLog("World state saved");
-        } catch (error) {
-            showToast(`保存失败: ${error.details || error.message}`);
-        }
-    });
-
-    refs.btnBackMenu.addEventListener("click", () => setView("mainMenu"));
-
-    refs.createCharacter.addEventListener("click", () => {
-        const name = refs.inputPlayerName.value.trim();
-        if (!name) {
-            showToast("请输入角色名");
-            return;
-        }
-
-        state.player.name = name;
-        state.player.profession = state.selectedProfession;
-        state.player.level = 1;
-        state.world.day = 1;
-        updateHUD();
-        closeModal("modalNewGame");
-        setView("gameplay");
-        showToast(`欢迎，${name}`);
-        appendLog(`New game created: ${name}`);
-    });
-
-    refs.saveSettings.addEventListener("click", () => {
-        persistSettings();
-        closeModal("modalSettings");
-        showToast("设置已保存");
-        appendLog(`Settings saved: volume=${state.settings.volume}, fps=${state.settings.fpsLimit}`);
-    });
-
-    refs.btnRunDamage.addEventListener("click", runDamageSimulation);
-    refs.btnRunAI.addEventListener("click", runAIDecision);
-    refs.btnReloadRules.addEventListener("click", reloadRules);
-    refs.btnSyncState.addEventListener("click", syncServerState);
-    refs.btnLoadStateJson.addEventListener("click", loadCurrentStateJson);
-    refs.btnApplyStateJson.addEventListener("click", applyDebugWorldState);
-    refs.btnAddEventRule.addEventListener("click", () => { createEventRuleRow("", ""); updateEventRulePreview(); });
-    refs.btnApplyEventRules.addEventListener("click", requestManualRulePublish);
-    refs.btnFetchEventRules.addEventListener("click", loadEventRulesFromBackend);
-    refs.btnExportEventRules.addEventListener("click", exportEventRuleMappings);
-    refs.btnImportEventRules.addEventListener("click", () => refs.inputEventRulesFile.click());
-    refs.btnPreviewRuleDiff.addEventListener("click", requestManualRulePublish);
-    refs.btnSaveRuleVersion.addEventListener("click", saveCurrentRuleVersion);
-    refs.btnApplyRuleVersion.addEventListener("click", () => {
-        applySelectedRuleVersion().catch((error) => {
-            showToast(`Apply version failed: ${error.details || error.message}`);
-            appendLog(`Apply version failed: ${error.details || error.message}`);
-        });
-    });
-    refs.btnRollbackRuleVersion.addEventListener("click", () => {
-        rollbackPublishedRuleVersion().catch((error) => {
-            showToast(`Rollback failed: ${error.details || error.message}`);
-            appendLog(`Rollback failed: ${error.details || error.message}`);
-        });
-    });
-    refs.inputEventRulesFile.addEventListener("change", (event) => {
-        const target = event.target;
-        if (target instanceof HTMLInputElement && target.files && target.files[0]) {
-            importEventRuleMappingsFromFile(target.files[0]);
-            target.value = "";
-        }
-    });
-    refs.confirmRuleDiff.addEventListener("click", () => {
-        const pending = state.pendingRulePublish;
-        if (!pending) {
-            closeModal("modalRuleDiff");
-            return;
-        }
-
-        applyEventRuleMappings(pending.map, pending.source)
-            .finally(() => {
-                closeModal("modalRuleDiff");
-            });
-    });
-    refs.btnTriggerStory.addEventListener("click", () => triggerEvent(1001, [state.world.day]));
-    refs.btnTriggerCombat.addEventListener("click", () => triggerEvent(2001, [50]));
-
-    document.querySelectorAll("[data-close]").forEach((button) => {
-        button.addEventListener("click", () => {
-            closeModal(button.dataset.close);
-        });
-    });
-
-    document.querySelectorAll(".profession").forEach((button) => {
-        button.addEventListener("click", () => {
-            document.querySelectorAll(".profession").forEach((node) => node.classList.remove("selected"));
-            button.classList.add("selected");
-            state.selectedProfession = button.dataset.profession || "warrior";
-        });
-    });
-
-    window.addEventListener("keydown", (event) => {
-        switch (event.key.toLowerCase()) {
-            case "w":
-            case "arrowup":
-                movePlayer(0, -state.world.step);
-                break;
-            case "s":
-            case "arrowdown":
-                movePlayer(0, state.world.step);
-                break;
-            case "a":
-            case "arrowleft":
-                movePlayer(-state.world.step, 0);
-                break;
-            case "d":
-            case "arrowright":
-                movePlayer(state.world.step, 0);
-                break;
-            case "escape":
-                setView("mainMenu");
-                break;
-            case "i":
-                refs.inventoryDrawer.classList.add("open");
-                break;
-            case "k":
-                refs.btnSkillTree.click();
-                break;
-            case "q":
-                refs.btnQuest.click();
-                break;
-            case "f5":
-                event.preventDefault();
-                refs.btnSave.click();
-                break;
-            default:
-                break;
-        }
-    });
-}
-
-function bootstrap() {
-    loadSettings();
-    buildWorldTiles();
-    buildInventory();
-    buildSaveSlots();
-    bindEvents();
-    renderRuleVersionOptions();
-    const persistedMap = loadPersistedEventRuleMap();
-    const persistedEntries = Object.entries(persistedMap);
-    if (persistedEntries.length > 0) {
-        persistedEntries.forEach(([id, rule]) => createEventRuleRow(id, String(rule)));
-        updateEventRulePreview();
-    } else if (refs.eventRuleRows.children.length === 0) {
-        createEventRuleRow("1001", "story_chapter_1");
-        createEventRuleRow("2001", "combat_start");
-        createEventRuleRow("3001", "quest_kill_monsters");
-        updateEventRulePreview();
-    }
-    updateHUD();
-    bootstrapFromBackend();
-}
+const localState = createLocalStateModule({
+  state,
+  refs,
+  showToast,
+  renderAll,
+  setView,
+  closeModal,
+  storage: window.localStorage
+});
+
+window.FantasyLocalStateRuntime = localState;
+
+const backendSync = createBackendSyncModule({
+  state,
+  refs,
+  appendLog,
+  showToast,
+  storage: window.localStorage
+});
+
+const gameplayRuntime = createGameplayRuntimeModule({
+  state,
+  refs,
+  showToast,
+  appendLog,
+  renderAll,
+  levelUpIfNeeded
+});
+
+window.FantasyGameplayRuntime = gameplayRuntime;
+
+const {
+  addJournal,
+  applyReputation,
+  buildInventory,
+  buildShop,
+  buyShopItem,
+  forgeRelic,
+  gain,
+  restAtCamp,
+  usePotion
+} = gameplayRuntime;
+
+let uiPanelsRuntime = null;
+let appCoreRuntime = null;
+
+const progressionRuntime = createProgressionRuntimeModule({
+  state,
+  refs,
+  showToast,
+  renderAll,
+  renderPanels: () => uiPanelsRuntime?.renderPanels?.(),
+  ensureGameplayState,
+  currentChapterId,
+  chapter,
+  addJournal,
+  applyReputation,
+  gain,
+  applyDecisionReward,
+  pushStoryCard,
+  formatRewardInline,
+  regionPoiSummary,
+  npcChapterChainSummary,
+  npcChapterRelationshipSummary,
+  openStoryGuideModal,
+  openNearestNpcDialog
+});
+
+window.FantasyProgressionRuntime = progressionRuntime;
+
+const {
+  activeCompanion,
+  activeCompanionSummary,
+  addMissionMetric,
+  chapterMissionSummary,
+  chapterSupportSummary,
+  checkChapterMissionRewards,
+  companionPower,
+  completeSupportOperation,
+  ensureCompanionRosterState,
+  grantCompanionGrowth,
+  missionDone,
+  missionMetricValue,
+  progressSideQuests,
+  recruitCompanion,
+  refreshSideQuests,
+  renderSupportTracker,
+  supportPrimaryBlockerText
+} = progressionRuntime;
+
+uiPanelsRuntime = createUiPanelsModule({
+  state,
+  refs,
+  chapter,
+  currentChapterId,
+  ensureGameplayState,
+  getStoryProgressStatus,
+  getChapterArcState,
+  getCurrentArcNode,
+  chapterMissionSummary,
+  missionDone,
+  missionMetricValue,
+  chapterSupportSummary,
+  supportPrimaryBlockerText,
+  activeCompanion,
+  regionPoiSummary,
+  renderSupportTracker,
+  renderPartyAndSkills,
+  renderNpcPanel
+});
+
+window.FantasyUiPanelsRuntime = uiPanelsRuntime;
+
+const {
+  renderPanels,
+  renderStoryAndQuests
+} = uiPanelsRuntime;
+
+const storyRuntime = createStoryRuntimeModule({
+  state,
+  refs,
+  showToast,
+  renderAll,
+  openModal,
+  closeModal,
+  ensureGameplayState,
+  currentChapterId,
+  chapter,
+  addJournal,
+  applyReputation,
+  gain,
+  addMissionMetric,
+  progressSideQuests,
+  refreshSideQuests,
+  pushStoryCard,
+  getPendingChapterDecision,
+  buildDecisionImpactDetails,
+  applyDecisionReward,
+  buildChapterSummaryReport,
+  evaluateEndingNarrative,
+  openEndingReviewModal,
+  getStoryProgressStatus
+});
+
+window.FantasyStoryRuntime = storyRuntime;
+
+const {
+  advanceChapter,
+  checkDecisionRequirement,
+  commitChoice,
+  exploreArea,
+  getChapterArcState,
+  getCurrentArcNode,
+  openStoryDecisionModal,
+  triggerCombatEvent,
+  triggerStoryEvent
+} = storyRuntime;
+
+appCoreRuntime = createAppCoreModule({
+  state,
+  refs,
+  chapters: CHAPTERS,
+  jobs: JOBS,
+  chapterArcs: CHAPTER_ARCS,
+  showToast,
+  setTextIfChanged,
+  ensureCompanionRosterState,
+  checkChapterMissionRewards,
+  getPendingChapterDecision,
+  chapterMissionSummary,
+  getChapterArcState,
+  updateRegionName,
+  updatePositionHUD,
+  updateAvatarPlacement,
+  refreshAvatarEnvironmentFx,
+  refreshWorldMapLayout,
+  maybeAutoOpenStoryGuide,
+  renderStoryGuideModal,
+  renderStoryAndQuests,
+  renderBoss,
+  renderPanels,
+  buildInventory
+});
+
+window.FantasyAppCoreRuntime = appCoreRuntime;
+
+function setView(v) { return appCoreRuntime?.setView(v); }
+function openModal(id) { return appCoreRuntime?.openModal(id); }
+function closeModal(id) { return appCoreRuntime?.closeModal(id); }
+function chapter() { return appCoreRuntime?.chapter() || CHAPTERS[0]; }
+function professionLabel() { return appCoreRuntime?.professionLabel() || "鏈煡"; }
+function levelUpIfNeeded() { return appCoreRuntime?.levelUpIfNeeded(); }
+function updateHUD() { return appCoreRuntime?.updateHUD(); }
+function getMainObjectiveHint(c) { return appCoreRuntime?.getMainObjectiveHint(c) || ""; }
+function getStoryProgressStatus(c = chapter()) { return appCoreRuntime?.getStoryProgressStatus(c) || { canAdvance: false, blockers: [], nextAction: "", objectiveRemaining: 0, sideNeed: 0, arcRemaining: 0, mission: { total: 0, done: 0, remaining: 0, next: null }, pendingDecision: null, mainKey: "", progress: 0, target: 0 }; }
+function currentChapterId() { return appCoreRuntime?.currentChapterId() || chapter().id; }
+function ensureGameplayState() { return appCoreRuntime?.ensureGameplayState(); }
+function renderAll() { return appCoreRuntime?.renderAll(); }
+
+const appShellRuntime = createAppShellModule({
+  state,
+  refs,
+  jobs: JOBS,
+  localState,
+  backendSync,
+  safeOn,
+  showToast,
+  setView,
+  openModal,
+  closeModal,
+  ensureGameplayState,
+  currentChapterId,
+  renderAll,
+  buildWorldTiles,
+  buildInventory,
+  buildShop,
+  refreshSideQuests,
+  refreshWorldMapLayout,
+  applyChineseStoryContent,
+  applyChineseUiText,
+  renderStoryReplay,
+  renderChapterSummary,
+  storyTextData: {
+    STORY_EVENTS,
+    CAMPFIRE_SCENES,
+    CHAPTER_ARCS,
+    NPC_RELATIONSHIP_EVENTS
+  },
+  actions: {
+    activeCompanion,
+    addJournal,
+    advanceChapter,
+    applyTalent,
+    autoAllocateTalents,
+    buyShopItem,
+    castCompanionSkill,
+    castSelectedSkill,
+    clearBossTimeline,
+    commitChoice,
+    completeSupportOperation,
+    exploreArea,
+    exportChapterSummary,
+    exportEndingReview,
+    exportStoryReplay,
+    forgeRelic,
+    gain,
+    getCampfirePool: (chapterId) => CAMPFIRE_SCENES[chapterId] || CAMPFIRE_SCENES.camp,
+    grantCompanionGrowth,
+    interactNearestRegionPoi,
+    movePlayer,
+    npcActionGift,
+    npcActionQuest,
+    npcActionTalk,
+    npcActionTrade,
+    npcActionTrain,
+    openChapterSummaryModal,
+    openEndingReviewModal,
+    openNearestNpcDialog,
+    openStoryDecisionModal,
+    openStoryGuideModal,
+    openStoryReplayModal,
+    recruitCompanion,
+    renderPanels,
+    resetBuild,
+    restAtCamp,
+    runAIDecision,
+    runDamageSimulation,
+    runStoryGuideAction,
+    showTalentSummary,
+    startBoss,
+    strikeBoss,
+    teleportPlayerTo,
+    triggerCombatEvent,
+    triggerStoryEvent,
+    usePotion
+  }
+});
+
+const {
+  bindEvents,
+  bootstrap
+} = appShellRuntime;
 
 bootstrap();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
