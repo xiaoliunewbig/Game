@@ -1,19 +1,62 @@
 {
-  "name": "fantasy-legend-electron-client",
-  "version": "1.0.0",
-  "description": "Electron frontend for Fantasy Legend",
-  "private": true,
-  "main": "main.js",
-  "scripts": {
-    "start": "electron .",
-    "start:dev": "electron . --dev",
-    "verify": "node --check main.js && node --check preload.js && node --check src/renderer.js"
-  },
-  "dependencies": {
-    "@grpc/grpc-js": "^1.14.0",
-    "@grpc/proto-loader": "^0.8.0"
-  },
-  "devDependencies": {
-    "electron": "^37.0.0"
-  }
+    "name":  "fantasy-legend-electron-client",
+    "version":  "1.0.0",
+    "description":  "Electron frontend for Fantasy Legend",
+    "private":  true,
+    "author":  "Fantasy Legend Team",
+    "main":  "main.js",
+    "scripts":  {
+                    "start":  "electron .",
+                    "start:dev":  "electron . --dev",
+                    "verify":  "node --check main.js \u0026\u0026 node --check preload.js \u0026\u0026 node --check src/renderer.js",
+                    "pack":  "electron-builder --dir",
+                    "dist":  "electron-builder",
+                    "dist:win":  "set CSC_IDENTITY_AUTO_DISCOVERY=false\u0026\u0026 electron-builder --win nsis --x64 --config.win.signAndEditExecutable=false",
+                    "dist:win:noedit":  "set CSC_IDENTITY_AUTO_DISCOVERY=false\u0026\u0026 electron-builder --win nsis --x64 --config.win.signAndEditExecutable=false",
+                    "smoke:release":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\release-smoke.ps1",
+                    "smoke:release:noedit":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\\\scripts\\\\release-smoke.ps1 -UseNoEdit"
+                },
+    "dependencies":  {
+                         "@grpc/grpc-js":  "^1.14.0",
+                         "@grpc/proto-loader":  "^0.8.0"
+                     },
+    "devDependencies":  {
+                            "electron":  "^37.0.0",
+                            "electron-builder":  "^24.13.3"
+                        },
+    "build":  {
+                  "appId":  "com.fantasylegend.client",
+                  "productName":  "FantasyLegend",
+                  "directories":  {
+                                      "output":  "dist"
+                                  },
+                  "files":  [
+                                "main.js",
+                                "preload.js",
+                                "src/**/*",
+                                "../proto/**/*.proto",
+                                "package.json"
+                            ],
+                  "extraMetadata":  {
+                                        "main":  "main.js"
+                                    },
+                  "win":  {
+                              "target":  [
+                                             {
+                                                 "target":  "nsis",
+                                                 "arch":  [
+                                                              "x64"
+                                                          ]
+                                             }
+                                         ],
+                              "artifactName":  "FantasyLegend-${version}-win-${arch}.${ext}",
+                              "signAndEditExecutable":  false
+                          },
+                  "nsis":  {
+                               "oneClick":  false,
+                               "allowToChangeInstallationDirectory":  true,
+                               "createDesktopShortcut":  true,
+                               "createStartMenuShortcut":  true
+                           }
+              }
 }

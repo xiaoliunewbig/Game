@@ -68,6 +68,22 @@ npm install
 npm start
 ```
 
+## Windows One-Command Startup
+
+```powershell
+cd D:\Game\Game
+.\scripts\start_all.ps1 -BuildDir build-vs2022 -BuildType Release
+```
+
+Or use cmd wrapper:
+
+```cmd
+scripts\start_all.cmd -BuildDir build-vs2022 -BuildType Release
+```
+
+The script launches `algorithm_server`, `strategy_server`, and Electron frontend in separate PowerShell windows.
+
+
 ## Main Ports
 
 - Algorithm Service: `50051`
